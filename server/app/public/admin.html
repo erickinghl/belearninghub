@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在线教育 - 管理后台</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; }
+  .topbar { background: #5ccc84; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .topbar h1 { font-size: 18px; font-weight: 600; }
+  .topbar .user { font-size: 14px; }
+  .topbar .user a { color: #fff; margin-left: 16px; cursor: pointer; opacity: .9; }
+  .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs button { padding: 8px 20px; border: none; background: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; color: #666; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .tabs button.active { background: #5ccc84; color: #fff; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+  .card h2 { font-size: 16px; margin-bottom: 18px; color: #333; }
+  .btn { padding: 9px 22px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .btn-primary { background: #5ccc84; color: #fff; }
+  .btn-danger { background: #ff6b6b; color: #fff; }
+  .btn-sm { padding: 5px 14px; font-size: 13px; }
+  .btn-plain { background: #f0f2f5; color: #666; }
+  /* 登录 */
+  .login-box { max-width: 360px; margin: 100px auto; background: #fff; padding: 36px 32px; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+  .login-box h2 { text-align: center; margin-bottom: 24px; color: #5ccc84; }
+  .form-row { margin-bottom: 16px; }
+  .form-row label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+  .form-row input, .form-row textarea, .form-row select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+  .form-row input:focus, .form-row textarea:focus { border-color: #5ccc84; }
+  .form-row textarea { min-height: 90px; resize: vertical; }
+  .row2 { display: flex; gap: 16px; }
+  .row2 > div { flex: 1; }
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  th { color: #999; font-weight: 500; background: #fafafa; }
+  td img { width: 80px; height: 45px; object-fit: cover; border-radius: 6px; vertical-align: middle; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .tag-on { background: #e6f7ec; color: #2fa05a; }
+  .tag-off { background: #f0f0f0; color: #999; }
+  .price { color: #ff5252; font-weight: 600; }
+  .cover-up { display: flex; align-items: center; gap: 12px; }
+  .cover-up img { width: 120px; height: 68px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+  .msg { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 24px; border-radius: 24px; font-size: 14px; z-index: 999; }
+  .empty { text-align: center; color: #bbb; padding: 40px; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 560px; max-height: 88vh; overflow-y: auto; }
+  .modal h2 { margin-bottom: 20px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 提示 -->
+  <div class="msg" v-if="msg">{{ msg }}</div>
+
+  <!-- 登录页 -->
+  <div v-if="!token" class="login-box">
+    <h2>在线教育 · 管理后台</h2>
+    <div class="form-row">
+      <label>用户名</label>
+      <input v-model="loginForm.username" placeholder="请输入用户名" @keyup.enter="login">
+    </div>
+    <div class="form-row">
+      <label>密码</label>
+      <input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="login">
+    </div>
+    <button class="btn btn-primary" style="width:100%" @click="login">登 录</button>
+    <p style="text-align:center;color:#bbb;font-size:12px;margin-top:14px;">测试账号 adminuser / 123456</p>
+  </div>
+
+  <!-- 主界面 -->
+  <template v-else>
+    <div class="topbar">
+      <h1>📚 在线教育 管理后台</h1>
+      <div class="user">{{ username }} <a @click="logout">退出</a></div>
+    </div>
+    <div class="wrap">
+      <div class="tabs">
+        <button :class="{active: tab==='course'}" @click="tab='course'">课程管理</button>
+        <button :class="{active: tab==='paper'}" @click="goPapers()">题库（刷题）</button>
+        <button :class="{active: tab==='grade'}" @click="goGrade()">阅卷</button>
+        <button :class="{active: tab==='order'}" @click="goOrders()">订单</button>
+        <button :class="{active: tab==='book'}" @click="goBooks()">电子书</button>
+        <button :class="{active: tab==='banner'}" @click="tab='banner'">轮播图</button>
+        <button :class="{active: tab==='navicon'}" @click="goNavIcons()">首页图标</button>
+        <button :class="{active: tab==='correction'}" @click="goCorrections()">纠错<span v-if="correctionPending>0" class="badge">{{correctionPending}}</span></button>
+      </div>
+
+      <!-- 课程管理 -->
+      <div v-if="tab==='course'">
+        <div class="card">
+          <h2>课程列表 <button class="btn btn-primary btn-sm" style="float:right" @click="openCourse()">+ 添加课程</button></h2>
+          <table>
+            <thead><tr><th>封面</th><th>标题</th><th>类型</th><th>价格</th><th>学习</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="c in courses" :key="c.id">
+                <td><img :src="c.cover || placeholder" alt=""></td>
+                <td>{{ c.title }}</td>
+                <td>{{ typeText(c.type) }}</td>
+                <td><span class="price">￥{{ c.price }}</span> <s style="color:#bbb">￥{{ c.t_price }}</s></td>
+                <td>{{ c.study_count }}</td>
+                <td><span :class="c.status==1?'tag tag-on':'tag tag-off'">{{ c.status==1?'上架':'下架' }}</span></td>
+                <td>
+                  <button class="btn btn-plain btn-sm" @click="openCourse(c)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delCourse(c)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!courses.length" class="empty">暂无课程，点击右上角添加</div>
+        </div>
+      </div>
+
+      <!-- 题库（刷题）管理 -->
+      <div v-if="tab==='paper'">
+        <!-- 题库分类管理 -->
+        <div class="card" v-if="!curPaper">
+          <h2>题库分类
+            <button class="btn btn-primary btn-sm" style="float:right" @click="openCategory()">+ 新建分类</button>
+          </h2>
+          <table>
+            <thead><tr><th>名称</th><th>排序</th><th>试卷数</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="c in testCats" :key="c.id">
+                <td>{{ c.title }}</td>
+                <td>{{ c.sort }}</td>
+                <td>{{ paperCountByCat(c.id) }}</td>
+                <td>
+                  <button class="btn btn-plain btn-sm" @click="openCategory(c)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delCategory(c)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!testCats.length" class="empty">暂无分类，点击右上角新建（分类用于在手机端筛选题库）</div>
+        </div>
+
+        <!-- 试卷列表 -->
+        <div class="card" v-if="!curPaper">
+          <h2>试卷列表 <button class="btn btn-primary btn-sm" style="float:right" @click="openPaper()">+ 新建试卷</button></h2>
+          <table>
+            <thead><tr><th>标题</th><th>分类</th><th>题数</th><th>总分</th><th>及格分</th><th>限时</th><th>模式</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="p in papers" :key="p.id">
+                <td>{{ p.title }}</td>
+                <td>{{ catName(p.category_id) }}</td>
+                <td>{{ p.question_count }}</td>
+                <td>{{ p.total_score }}</td>
+                <td>{{ p.pass_score }}</td>
+                <td>{{ p.expire>0 ? p.expire+'分钟' : '不限时' }}</td>
+                <td>{{ p.is_test==1 ? '考试' : '练习' }}</td>
+                <td><span :class="p.status==1?'tag tag-on':'tag tag-off'">{{ p.status==1?'上架':'下架' }}</span></td>
+                <td>
+                  <button class="btn btn-primary btn-sm" @click="manageQuestions(p)">出题</button>
+                  <button class="btn btn-plain btn-sm" @click="openPaper(p)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delPaper(p)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!papers.length" class="empty">暂无试卷，点击右上角新建</div>
+        </div>
+
+        <!-- 某试卷的题目管理 -->
+        <div v-else>
+          <div class="card">
+            <h2>
+              <a @click="curPaper=null" style="color:#5ccc84;cursor:pointer;">← 返回试卷列表</a>
+              ｜ 「{{ curPaper.title }}」 题目管理
+              <span style="float:right">
+                <button class="btn btn-plain btn-sm" @click="openImport()">批量导入</button>
+                <button class="btn btn-primary btn-sm" @click="openQuestion()">+ 添加题目</button>
+              </span>
+            </h2>
+            <table>
+              <thead><tr><th>#</th><th>题型</th><th>题干</th><th>正确答案</th><th>分值</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="(q,i) in questions" :key="q.id">
+                  <td>{{ i+1 }}</td>
+                  <td>{{ qTypeText(q.type) }}</td>
+                  <td v-html="(q.title||'').slice(0,40)"></td>
+                  <td>{{ answerText(q) }}</td>
+                  <td>{{ q.score }}</td>
+                  <td>
+                    <button class="btn btn-plain btn-sm" @click="openQuestion(q)">编辑</button>
+                    <button class="btn btn-danger btn-sm" @click="delQuestion(q)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="!questions.length" class="empty">暂无题目，点「添加题目」或「批量导入」</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 订单管理 -->
+      <div v-if="tab==='order'">
+        <div class="card">
+          <h2>
+            订单
+            <span style="float:right;font-size:13px;">
+              <button class="btn btn-sm" :class="orderStatus===''?'btn-primary':'btn-plain'" @click="switchOrder('')">全部</button>
+              <button class="btn btn-sm" :class="orderStatus==='1'?'btn-primary':'btn-plain'" @click="switchOrder('1')">已支付</button>
+              <button class="btn btn-sm" :class="orderStatus==='0'?'btn-primary':'btn-plain'" @click="switchOrder('0')">待支付</button>
+            </span>
+          </h2>
+          <table>
+            <thead><tr><th>订单号</th><th>商品</th><th>类型</th><th>考生</th><th>金额</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="o in orders" :key="o.id">
+                <td style="font-size:12px;">{{ o.no }}</td>
+                <td>{{ o.goods_title }}</td>
+                <td>{{ o.goods_type==='book'?'电子书':'课程' }}</td>
+                <td>{{ o.username }}</td>
+                <td><span class="price">￥{{ o.price }}</span></td>
+                <td>
+                  <span :class="o.status==1?'tag tag-on':(o.status==2?'tag tag-off':'tag')" :style="o.status==0?'background:#fff3e0;color:#e8a33d;':''">
+                    {{ o.status==1?'已支付':(o.status==2?'已取消':'待支付') }}
+                  </span>
+                </td>
+                <td style="font-size:12px;color:#999;">{{ fmtTime(o.created_time) }}</td>
+                <td>
+                  <button v-if="o.status==0" class="btn btn-primary btn-sm" @click="confirmOrder(o)">确认支付</button>
+                  <button v-if="o.status!=2" class="btn btn-danger btn-sm" @click="cancelOrder(o)">取消</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!orders.length" class="empty">暂无订单</div>
+        </div>
+      </div>
+
+      <!-- 阅卷（问答题人工评分） -->
+      <div v-if="tab==='grade'">
+        <!-- 待阅卷列表 -->
+        <div class="card" v-if="!curRecord">
+          <h2>
+            阅卷
+            <span style="float:right;font-size:13px;">
+              <button class="btn btn-sm" :class="gradeStatus==='pending'?'btn-primary':'btn-plain'" @click="switchGrade('pending')">待阅卷</button>
+              <button class="btn btn-sm" :class="gradeStatus==='done'?'btn-primary':'btn-plain'" @click="switchGrade('done')">已阅卷</button>
+              <button class="btn btn-sm" :class="gradeStatus==='all'?'btn-primary':'btn-plain'" @click="switchGrade('all')">全部</button>
+            </span>
+          </h2>
+          <table>
+            <thead><tr><th>记录</th><th>试卷</th><th>考生</th><th>当前得分</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="r in records" :key="r.id">
+                <td>#{{ r.id }}</td>
+                <td>{{ r.testpaper ? r.testpaper.title : '—' }}</td>
+                <td>{{ r.username }}</td>
+                <td>{{ r.score }} / {{ r.total_score }}</td>
+                <td><span :class="r.read_status==1?'tag tag-on':'tag tag-off'">{{ r.read_status==1?'已阅卷':'待阅卷' }}</span></td>
+                <td style="font-size:12px;color:#999;">{{ fmtTime(r.created_time) }}</td>
+                <td><button class="btn btn-primary btn-sm" @click="openGrade(r)">{{ r.read_status==1?'查看/重判':'阅卷' }}</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!records.length" class="empty">{{ gradeStatus==='pending' ? '没有待阅卷的答卷' : '暂无记录' }}</div>
+        </div>
+
+        <!-- 单份答卷阅卷 -->
+        <div v-else>
+          <div class="card">
+            <h2>
+              <a @click="curRecord=null" style="color:#5ccc84;cursor:pointer;">← 返回阅卷列表</a>
+              ｜ 「{{ curRecord.title }}」 答卷 #{{ curRecord.id }}
+              <span style="float:right;font-size:14px;">当前总分：<b style="color:#ff5252;">{{ liveScore() }}</b> / {{ curRecord.total_score }}（及格 {{ curRecord.pass_score }}）</span>
+            </h2>
+            <div v-for="(q,i) in gradeDetail" :key="q.id" style="border-bottom:1px solid #f0f0f0;padding:14px 0;">
+              <div style="font-weight:600;margin-bottom:6px;">
+                {{ i+1 }}. [{{ qTypeText(q.type) }}]
+                <span v-html="q.title"></span>
+                <span style="float:right;color:#999;font-size:13px;">满分 {{ q.score }}</span>
+              </div>
+              <!-- 客观题：只读显示对错 -->
+              <div v-if="!q.manual" style="font-size:13px;color:#666;">
+                考生答案：{{ fmtUserVal(q) }}
+                <span :class="q.correct?'tag tag-on':'tag tag-off'">{{ q.correct?'✓ 正确 +'+q.gain : '✗ 错误 +0' }}</span>
+              </div>
+              <!-- 问答题：显示作答 + 给分输入 -->
+              <div v-else>
+                <div style="background:#fafafa;border-radius:8px;padding:10px;font-size:14px;white-space:pre-wrap;margin-bottom:8px;">{{ q.userValue && q.userValue[0] ? q.userValue[0] : '（考生未作答）' }}</div>
+                <div v-if="q.analysis" style="font-size:12px;color:#999;margin-bottom:8px;">参考/解析：<span v-html="q.analysis"></span></div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <label style="font-size:14px;">本题给分：</label>
+                  <input type="number" v-model.number="gradeInput[q.id]" :max="q.score" min="0" style="width:100px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
+                  <span style="color:#bbb;font-size:13px;">/ {{ q.score }} 分</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot" style="margin-top:16px;">
+              <button class="btn btn-plain" @click="curRecord=null">取消</button>
+              <button class="btn btn-primary" @click="submitGrade">提交阅卷</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 电子书管理 -->
+      <div v-if="tab==='book'">
+        <!-- 书列表 -->
+        <div class="card" v-if="!curBook">
+          <h2>电子书列表 <button class="btn btn-primary btn-sm" style="float:right" @click="openBook()">+ 新建电子书</button></h2>
+          <table>
+            <thead><tr><th>封面</th><th>书名</th><th>作者</th><th>价格</th><th>阅读</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="b in books" :key="b.id">
+                <td><img :src="b.cover || placeholder" alt=""></td>
+                <td>{{ b.title }}</td>
+                <td>{{ b.author || '—' }}</td>
+                <td><span class="price">￥{{ b.price }}</span></td>
+                <td>{{ b.sub_count }}</td>
+                <td>
+                  <span :class="b.status==1?'tag tag-on':'tag tag-off'">{{ b.status==1?'上架':'下架' }}</span>
+                  <span class="tag" style="background:#eef;color:#67e;margin-left:4px;">{{ b.book_type==='pdf'?'PDF':'章节' }}</span>
+                </td>
+                <td>
+                  <button v-if="b.book_type!=='pdf'" class="btn btn-primary btn-sm" @click="manageChapters(b)">章节</button>
+                  <button class="btn btn-plain btn-sm" @click="openBook(b)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delBook(b)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!books.length" class="empty">暂无电子书，点击右上角新建</div>
+        </div>
+
+        <!-- 章节管理 -->
+        <div v-else>
+          <div class="card">
+            <h2>
+              <a @click="curBook=null" style="color:#5ccc84;cursor:pointer;">← 返回书列表</a>
+              ｜ 「{{ curBook.title }}」 章节管理
+              <button class="btn btn-primary btn-sm" style="float:right" @click="openChapter()">+ 添加章节</button>
+            </h2>
+            <table>
+              <thead><tr><th>#</th><th>章节标题</th><th>权限</th><th>内容长度</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="(c,i) in chapters" :key="c.id">
+                  <td>{{ i+1 }}</td>
+                  <td>{{ c.title }}</td>
+                  <td><span :class="c.isfree==1?'tag tag-on':'tag tag-off'">{{ c.isfree==1?'免费试读':'需购买' }}</span></td>
+                  <td>{{ (c.content||'').length }} 字</td>
+                  <td>
+                    <button class="btn btn-plain btn-sm" @click="openChapter(c)">编辑</button>
+                    <button class="btn btn-danger btn-sm" @click="delChapter(c)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="!chapters.length" class="empty">暂无章节，点「添加章节」</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 轮播图管理 -->
+      <div v-if="tab==='banner'">
+        <div class="card">
+          <h2>轮播图 <button class="btn btn-primary btn-sm" style="float:right" @click="openBanner()">+ 添加轮播图</button></h2>
+          <table>
+            <thead><tr><th>图片</th><th>标题</th><th>关联课程</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="b in banners" :key="b.id">
+                <td><img :src="b.cover || placeholder" alt=""></td>
+                <td>{{ b.title || '（未命名）' }}</td>
+                <td>{{ b.course_id ? ('课程#' + b.course_id) : '—' }}</td>
+                <td>
+                  <button class="btn btn-plain btn-sm" @click="openBanner(b)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delBanner(b)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!banners.length" class="empty">暂无轮播图，点击右上角添加</div>
+        </div>
+      </div>
+
+      <!-- 首页图标管理 -->
+      <div v-if="tab==='navicon'">
+        <div class="card">
+          <h2>首页宫格图标
+            <button class="btn btn-primary btn-sm" style="float:right" @click="openNavIcon()">+ 新建图标</button>
+          </h2>
+          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">配置首页那一排功能图标。排序越大越靠前；隐藏的不显示在 App 首页。</p>
+          <table>
+            <thead><tr><th>图案</th><th>名称</th><th>跳转</th><th>排序</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="n in navIcons" :key="n.id">
+                <td>
+                  <img v-if="n.image_url" :src="n.image_url" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                  <span v-else :style="{display:'inline-flex',width:'38px',height:'38px',borderRadius:'50%',alignItems:'center',justifyContent:'center',fontSize:'20px',background:n.bg_color}">{{ n.emoji }}</span>
+                </td>
+                <td>{{ n.name }}</td>
+                <td><span style="font-size:12px;color:#888;">{{ n.jump_type==='url' ? n.jump_value : ('内置·'+navModuleText(n.jump_value)) }}</span></td>
+                <td>{{ n.sort }}</td>
+                <td><span :class="n.status==1?'tag tag-on':'tag tag-off'">{{ n.status==1?'显示':'隐藏' }}</span></td>
+                <td>
+                  <button class="btn btn-plain btn-sm" @click="toggleNavIcon(n)">{{ n.status==1?'隐藏':'显示' }}</button>
+                  <button class="btn btn-plain btn-sm" @click="openNavIcon(n)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delNavIcon(n)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!navIcons.length" class="empty">暂无图标，点击右上角新建</div>
+        </div>
+      </div>
+
+      <!-- 纠错管理 -->
+      <div v-if="tab==='correction'">
+        <div class="card">
+          <h2>答案纠错
+            <span style="float:right">
+              <button class="btn btn-sm" :class="corrStatus===''?'btn-primary':'btn-plain'" @click="loadCorrections('')">全部</button>
+              <button class="btn btn-sm" :class="corrStatus===0?'btn-primary':'btn-plain'" @click="loadCorrections(0)">待处理</button>
+              <button class="btn btn-sm" :class="corrStatus===1?'btn-primary':'btn-plain'" @click="loadCorrections(1)">已采纳</button>
+              <button class="btn btn-sm" :class="corrStatus===2?'btn-primary':'btn-plain'" @click="loadCorrections(2)">已驳回</button>
+            </span>
+          </h2>
+          <table>
+            <thead><tr><th>题目</th><th>当前答案</th><th>纠错说明</th><th>提交人</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="c in corrections" :key="c.id">
+                <td style="max-width:220px">{{ c.question_title }}</td>
+                <td>{{ c.question_answer }}</td>
+                <td style="max-width:240px;color:#e6735b">
+                  <div>{{ c.content }}</div>
+                  <div v-if="c.images && c.images.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                    <a v-for="(img,ii) in c.images" :key="ii" :href="img" target="_blank">
+                      <img :src="img" style="width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #eee;">
+                    </a>
+                  </div>
+                </td>
+                <td>{{ c.username }}</td>
+                <td>
+                  <span :style="{color: c.status===1?'#43b876':(c.status===2?'#999':'#ff9500')}">{{ c.status_text }}</span>
+                  <div v-if="c.reply" style="font-size:12px;color:#999">回复：{{ c.reply }}</div>
+                </td>
+                <td>
+                  <button class="btn btn-primary btn-sm" @click="handleCorrection(c)">处理</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!corrections.length" class="empty">暂无纠错反馈</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 课程编辑弹窗 -->
+    <div class="modal-mask" v-if="courseModal" @click.self="courseModal=false">
+      <div class="modal">
+        <h2>{{ courseForm.id ? '编辑课程' : '添加课程' }}</h2>
+        <div class="form-row">
+          <label>课程标题 *</label>
+          <input v-model="courseForm.title" placeholder="例如：Vue3 实战在线教育">
+        </div>
+        <div class="form-row">
+          <label>封面图</label>
+          <div class="cover-up">
+            <img v-if="courseForm.cover" :src="courseForm.cover">
+            <div>
+              <input type="file" accept="image/*" @change="uploadCover($event,'course')">
+              <p style="font-size:12px;color:#bbb;margin-top:4px;">选择本地图片上传</p>
+            </div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-row">
+            <label>类型</label>
+            <select v-model="courseForm.type">
+              <option value="media">图文</option>
+              <option value="audio">音频</option>
+              <option value="video">视频</option>
+              <option value="column">专栏</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>状态</label>
+            <select v-model="courseForm.status">
+              <option :value="1">上架</option>
+              <option :value="0">下架</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>现价 ￥</label><input v-model="courseForm.price" type="number" placeholder="0"></div>
+          <div class="form-row"><label>原价 ￥</label><input v-model="courseForm.t_price" type="number" placeholder="0"></div>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>学习人数</label><input v-model="courseForm.study_count" type="number" placeholder="0"></div>
+          <div class="form-row"><label>排序（大在前）</label><input v-model="courseForm.sort" type="number" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <label>简短描述</label>
+          <input v-model="courseForm.desc" placeholder="一句话介绍">
+        </div>
+        <div class="form-row">
+          <label>课程简介（支持 HTML）</label>
+          <textarea v-model="courseForm.try" placeholder="<h3>课程概述</h3><p>...</p>"></textarea>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="courseModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveCourse">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 轮播图编辑弹窗 -->
+    <div class="modal-mask" v-if="bannerModal" @click.self="bannerModal=false">
+      <div class="modal">
+        <h2>{{ bannerForm.id ? '编辑轮播图' : '添加轮播图' }}</h2>
+        <div class="form-row">
+          <label>标题</label>
+          <input v-model="bannerForm.title" placeholder="轮播图标题">
+        </div>
+        <div class="form-row">
+          <label>图片 *</label>
+          <div class="cover-up">
+            <img v-if="bannerForm.cover" :src="bannerForm.cover">
+            <div>
+              <input type="file" accept="image/*" @change="uploadCover($event,'banner')">
+              <p style="font-size:12px;color:#bbb;margin-top:4px;">建议尺寸 750×350，选本地图片上传</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>关联课程（可选，填课程id，点击轮播图跳该课程）</label>
+          <select v-model="bannerForm.course_id">
+            <option :value="0">不跳转</option>
+            <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.id }} - {{ c.title }}</option>
+          </select>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="bannerModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveBanner">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 试卷编辑弹窗 -->
+    <div class="modal-mask" v-if="paperModal" @click.self="paperModal=false">
+      <div class="modal">
+        <h2>{{ paperForm.id ? '编辑试卷' : '新建试卷' }}</h2>
+        <div class="form-row">
+          <label>试卷标题 *</label>
+          <input v-model="paperForm.title" placeholder="例如：前端基础知识自测">
+        </div>
+        <div class="form-row">
+          <label>简介</label>
+          <input v-model="paperForm.desc" placeholder="一句话介绍">
+        </div>
+        <div class="form-row">
+          <label>所属分类</label>
+          <select v-model="paperForm.category_id">
+            <option :value="0">未分类</option>
+            <option v-for="c in testCats" :key="c.id" :value="c.id">{{ c.title }}</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>及格分</label><input v-model="paperForm.pass_score" type="number" placeholder="60"></div>
+          <div class="form-row"><label>限时（分钟，0=不限时）</label><input v-model="paperForm.expire" type="number" placeholder="0"></div>
+        </div>
+        <div class="row2">
+          <div class="form-row">
+            <label>模式</label>
+            <select v-model="paperForm.is_test">
+              <option :value="0">练习模式（随时看解析）</option>
+              <option :value="1">考试模式（限时交卷）</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>状态</label>
+            <select v-model="paperForm.status">
+              <option :value="1">上架</option>
+              <option :value="0">下架</option>
+            </select>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#bbb;">总分=各题分值之和，自动统计，无需填写。</p>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="paperModal=false">取消</button>
+          <button class="btn btn-primary" @click="savePaper">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 题库分类编辑弹窗 -->
+    <div class="modal-mask" v-if="categoryModal" @click.self="categoryModal=false">
+      <div class="modal">
+        <h2>{{ categoryForm.id ? '编辑分类' : '新建分类' }}</h2>
+        <div class="form-row">
+          <label>分类名称 *</label>
+          <input v-model="categoryForm.title" placeholder="例如：前端基础 / 数据库 / 真题">
+        </div>
+        <div class="form-row">
+          <label>排序（数字越大越靠前）</label>
+          <input v-model="categoryForm.sort" type="number" placeholder="0">
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="categoryModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveCategory">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 首页图标编辑弹窗 -->
+    <div class="modal-mask" v-if="navIconModal" @click.self="navIconModal=false">
+      <div class="modal">
+        <h2>{{ navIconForm.id ? '编辑图标' : '新建图标' }}</h2>
+        <div class="form-row"><label>名称 *</label><input v-model="navIconForm.name" placeholder="例如：题库"></div>
+
+        <!-- 自定义图片（优先于 emoji） -->
+        <div class="form-row">
+          <label>自定义图标图片（可选，上传后优先于 emoji，自动裁成圆形）</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <img v-if="navIconForm.image_url" :src="navIconForm.image_url" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #eee;">
+            <label class="btn btn-plain btn-sm" style="cursor:pointer;display:inline-block;">
+              {{ navIconUploading ? '上传中…' : (navIconForm.image_url ? '更换图片' : '上传图片') }}
+              <input type="file" accept="image/*" style="display:none;" @change="uploadNavIconImage">
+            </label>
+            <button v-if="navIconForm.image_url" class="btn btn-danger btn-sm" @click="navIconForm.image_url=''">移除图片</button>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="form-row"><label>图案 emoji（未传图片时用）</label><input v-model="navIconForm.emoji" placeholder="📝" maxlength="4"></div>
+          <div class="form-row"><label>背景色（emoji 用）</label><input v-model="navIconForm.bg_color" placeholder="#e8f3ff"></div>
+        </div>
+        <div class="form-row"><label>排序（越大越靠前）</label><input v-model="navIconForm.sort" type="number" placeholder="0"></div>
+
+        <!-- 预览 -->
+        <div class="form-row">
+          <label>预览</label>
+          <img v-if="navIconForm.image_url" :src="navIconForm.image_url" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #eee;">
+          <span v-else :style="{display:'inline-flex',width:'48px',height:'48px',borderRadius:'50%',alignItems:'center',justifyContent:'center',fontSize:'26px',background:navIconForm.bg_color||'#e8f3ff'}">{{ navIconForm.emoji||'⭐' }}</span>
+        </div>
+        <div class="form-row">
+          <label>跳转方式</label>
+          <select v-model="navIconForm.jump_type">
+            <option value="module">内置模块</option>
+            <option value="url">自定义页面路径</option>
+          </select>
+        </div>
+        <div class="form-row" v-if="navIconForm.jump_type==='module'">
+          <label>内置模块</label>
+          <select v-model="navIconForm.jump_value">
+            <option value="test">题库（刷题）</option>
+            <option value="book">电子书</option>
+            <option value="course">课程</option>
+            <option value="column">专栏</option>
+            <option value="my-test">我的考试</option>
+            <option value="my-book">我的书架</option>
+          </select>
+        </div>
+        <div class="form-row" v-else>
+          <label>页面路径</label>
+          <input v-model="navIconForm.jump_value" placeholder="/pages/note-list/note-list">
+        </div>
+        <div class="form-row">
+          <label>状态</label>
+          <select v-model="navIconForm.status">
+            <option :value="1">显示</option>
+            <option :value="0">隐藏</option>
+          </select>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="navIconModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveNavIcon">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 题目编辑弹窗 -->
+    <div class="modal-mask" v-if="questionModal" @click.self="questionModal=false">
+      <div class="modal">
+        <h2>{{ questionForm.id ? '编辑题目' : '添加题目' }}</h2>
+        <div class="form-row">
+          <label>题型 *</label>
+          <select v-model="questionForm.type" @change="onTypeChange">
+            <option value="radio">单选题</option>
+            <option value="checkbox">多选题</option>
+            <option value="trueOrfalse">判断题</option>
+            <option value="completion">填空题</option>
+            <option value="answer">问答题</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>题干 *（支持 HTML）</label>
+          <textarea v-model="questionForm.title" placeholder="请输入题目内容"></textarea>
+        </div>
+
+        <!-- 单选/多选：选项 + 勾正确答案 -->
+        <div v-if="questionForm.type==='radio' || questionForm.type==='checkbox'">
+          <label style="font-size:13px;color:#666;">选项（勾选正确答案）</label>
+          <div v-for="(opt,i) in questionForm.options" :key="i" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input :type="questionForm.type==='radio'?'radio':'checkbox'"
+                   :checked="isOptChecked(i)" @change="toggleAnswer(i)">
+            <span style="width:20px;color:#999;">{{ letters[i] }}</span>
+            <input v-model="questionForm.options[i]" :placeholder="'选项'+letters[i]" style="flex:1;">
+            <button class="btn btn-danger btn-sm" @click="removeOption(i)">×</button>
+          </div>
+          <button class="btn btn-plain btn-sm" @click="addOption">+ 增加选项</button>
+        </div>
+
+        <!-- 判断题 -->
+        <div v-else-if="questionForm.type==='trueOrfalse'" class="form-row">
+          <label>正确答案</label>
+          <select v-model="questionForm.tfAnswer">
+            <option :value="1">正确（对）</option>
+            <option :value="0">错误（错）</option>
+          </select>
+        </div>
+
+        <!-- 填空题 -->
+        <div v-else-if="questionForm.type==='completion'">
+          <label style="font-size:13px;color:#666;">各空正确答案（按填空顺序）</label>
+          <div v-for="(b,i) in questionForm.blanks" :key="i" style="display:flex;gap:8px;margin-bottom:8px;">
+            <span style="width:40px;color:#999;line-height:36px;">第{{ i+1 }}空</span>
+            <input v-model="questionForm.blanks[i]" placeholder="该空正确答案" style="flex:1;">
+            <button class="btn btn-danger btn-sm" @click="questionForm.blanks.splice(i,1)">×</button>
+          </div>
+          <button class="btn btn-plain btn-sm" @click="questionForm.blanks.push('')">+ 增加填空</button>
+        </div>
+
+        <!-- 问答题 -->
+        <div v-else-if="questionForm.type==='answer'" class="form-row">
+          <label>参考答案（问答题不自动判分，仅供阅卷参考）</label>
+          <textarea v-model="questionForm.refAnswer" placeholder="参考答案"></textarea>
+        </div>
+
+        <div class="row2" style="margin-top:12px;">
+          <div class="form-row"><label>分值</label><input v-model="questionForm.score" type="number" placeholder="10"></div>
+          <div class="form-row"><label>排序</label><input v-model="questionForm.sort" type="number" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <label>习题解析（答完显示给学生）</label>
+          <textarea v-model="questionForm.analysis" placeholder="本题考查……，正确答案是……因为……"></textarea>
+        </div>
+        <div class="form-row">
+          <label>解析配图（可多张）</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;">
+            <div v-for="(img,ii) in (questionForm.analysis_images||[])" :key="ii"
+                 style="position:relative;width:96px;height:96px;">
+              <img :src="img" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid #eee;">
+              <span @click="questionForm.analysis_images.splice(ii,1)"
+                    style="position:absolute;top:-8px;right:-8px;width:22px;height:22px;line-height:22px;text-align:center;background:#ff5b5b;color:#fff;border-radius:50%;cursor:pointer;font-size:13px;">×</span>
+            </div>
+            <label style="width:96px;height:96px;border:1px dashed #cfd4dc;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#a8acb3;background:#fafbfc;">
+              <span style="font-size:28px;line-height:1;">+</span>
+              <span style="font-size:12px;margin-top:2px;">{{ anaImgUploading ? '上传中…' : '加图片' }}</span>
+              <input type="file" accept="image/*" multiple style="display:none;" @change="uploadAnalysisImages">
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>解析视频（可选，1个）</label>
+          <div v-if="questionForm.analysis_video" style="margin-bottom:8px;">
+            <video :src="questionForm.analysis_video" controls style="width:100%;max-width:360px;border-radius:8px;background:#000;"></video>
+            <div><button class="btn btn-danger btn-sm" @click="questionForm.analysis_video=''" style="margin-top:6px;">移除视频</button></div>
+          </div>
+          <label v-else class="btn btn-plain btn-sm" style="cursor:pointer;display:inline-block;">
+            {{ anaVideoUploading ? '上传中…' : '＋ 上传视频(mp4)' }}
+            <input type="file" accept="video/*" style="display:none;" @change="uploadAnalysisVideo">
+          </label>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="questionModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveQuestion">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量导入弹窗 -->
+    <div class="modal-mask" v-if="importModal" @click.self="importModal=false">
+      <div class="modal">
+        <h2>批量导入题目（JSON）</h2>
+        <p style="font-size:12px;color:#888;line-height:1.6;margin-bottom:10px;">
+          粘贴 JSON 数组，每题字段：type(radio/checkbox/trueOrfalse/completion/answer)、title、options(选择题)、answer、analysis、score。<br>
+          answer：单选=索引数字；多选=索引数组；判断=1或0；填空=答案数组；问答=文本。
+          <a @click="fillImportSample" style="color:#5ccc84;cursor:pointer;">填入示例</a>
+        </p>
+        <textarea v-model="importText" style="width:100%;min-height:240px;font-family:monospace;font-size:12px;" placeholder='[{"type":"radio","title":"...","options":["A","B"],"answer":0,"analysis":"...","score":10}]'></textarea>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="importModal=false">取消</button>
+          <button class="btn btn-primary" @click="doImport">导入</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 电子书编辑弹窗 -->
+    <div class="modal-mask" v-if="bookModal" @click.self="bookModal=false">
+      <div class="modal">
+        <h2>{{ bookForm.id ? '编辑电子书' : '新建电子书' }}</h2>
+        <div class="form-row">
+          <label>书名 *</label>
+          <input v-model="bookForm.title" placeholder="例如：JavaScript 入门读本">
+        </div>
+        <div class="form-row">
+          <label>封面图</label>
+          <div class="cover-up">
+            <img v-if="bookForm.cover" :src="bookForm.cover">
+            <div>
+              <input type="file" accept="image/*" @change="uploadCover($event,'book')">
+              <p style="font-size:12px;color:#bbb;margin-top:4px;">选择本地图片上传</p>
+            </div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>作者</label><input v-model="bookForm.author" placeholder="作者名"></div>
+          <div class="form-row">
+            <label>状态</label>
+            <select v-model="bookForm.status">
+              <option :value="1">上架</option>
+              <option :value="0">下架</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>阅读类型</label>
+          <select v-model="bookForm.book_type">
+            <option value="chapter">章节阅读（保存后点「章节」逐章添加内容）</option>
+            <option value="pdf">PDF 文件（上传整本 PDF，独立阅读器打开）</option>
+          </select>
+        </div>
+        <div class="form-row" v-if="bookForm.book_type === 'pdf'">
+          <label>PDF 文件 *</label>
+          <div class="cover-up">
+            <span v-if="bookForm.file_url" style="font-size:13px;color:#2fa05a;">已上传 ✔ <a :href="bookForm.file_url" target="_blank" style="color:#5ccc84;">预览</a></span>
+            <div>
+              <input type="file" accept="application/pdf,.pdf" @change="uploadPdf($event)">
+              <p style="font-size:12px;color:#bbb;margin-top:4px;">上传 PDF 文件（≤50MB）</p>
+            </div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>现价 ￥（0=免费）</label><input v-model="bookForm.price" type="number" placeholder="0"></div>
+          <div class="form-row"><label>原价 ￥</label><input v-model="bookForm.t_price" type="number" placeholder="0"></div>
+        </div>
+        <div class="row2">
+          <div class="form-row"><label>阅读人数</label><input v-model="bookForm.sub_count" type="number" placeholder="0"></div>
+          <div class="form-row"><label>排序（大在前）</label><input v-model="bookForm.sort" type="number" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <label>简短描述</label>
+          <input v-model="bookForm.desc" placeholder="一句话介绍">
+        </div>
+        <div class="form-row">
+          <label>简介（支持 HTML，详情页"简介"tab 显示）</label>
+          <textarea v-model="bookForm.try" placeholder="<p>本书介绍……</p>"></textarea>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="bookModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveBook">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 章节编辑弹窗 -->
+    <div class="modal-mask" v-if="chapterModal" @click.self="chapterModal=false">
+      <div class="modal">
+        <h2>{{ chapterForm.id ? '编辑章节' : '添加章节' }}</h2>
+        <div class="form-row">
+          <label>章节标题 *</label>
+          <input v-model="chapterForm.title" placeholder="例如：第一章 变量与数据类型">
+        </div>
+        <div class="row2">
+          <div class="form-row">
+            <label>权限</label>
+            <select v-model="chapterForm.isfree">
+              <option :value="1">免费试读</option>
+              <option :value="0">需购买</option>
+            </select>
+          </div>
+          <div class="form-row"><label>排序</label><input v-model="chapterForm.sort" type="number" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <label>章节内容（支持 HTML / 纯文本 TXT）</label>
+          <textarea v-model="chapterForm.content" style="min-height:200px;" placeholder="粘贴正文内容，可含 HTML 标签"></textarea>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="chapterModal=false">取消</button>
+          <button class="btn btn-primary" @click="saveChapter">保存</button>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
+
+<script>
+const { createApp } = Vue;
+const API = location.origin; // 后台和接口同源
+createApp({
+  data() {
+    return {
+      token: localStorage.getItem('admin_token') || '',
+      username: localStorage.getItem('admin_username') || '',
+      loginForm: { username: 'adminuser', password: '123456' },
+      tab: 'course',
+      courses: [],
+      banners: [],
+      courseModal: false,
+      bannerModal: false,
+      courseForm: {},
+      bannerForm: {},
+      // 题库
+      papers: [],
+      curPaper: null,
+      questions: [],
+      paperModal: false,
+      questionModal: false,
+      importModal: false,
+      paperForm: {},
+      questionForm: {},
+      // 题库分类
+      testCats: [],
+      categoryModal: false,
+      categoryForm: {},
+      // 首页图标
+      navIcons: [],
+      navIconModal: false,
+      navIconForm: {},
+      navIconUploading: false,
+      anaImgUploading: false,
+      anaVideoUploading: false,
+      importText: '',
+      // 电子书
+      books: [],
+      curBook: null,
+      chapters: [],
+      bookModal: false,
+      chapterModal: false,
+      bookForm: {},
+      chapterForm: {},
+      // 订单
+      orders: [],
+      orderStatus: '',
+      // 阅卷
+      records: [],
+      gradeStatus: 'pending',
+      curRecord: null,
+      gradeDetail: [],
+      gradeInput: {},
+      letters: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+      msg: '',
+      corrections: [],
+      corrStatus: '',
+      correctionPending: 0,
+      placeholder: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="45"%3E%3Crect width="80" height="45" fill="%23eee"/%3E%3C/svg%3E'
+    };
+  },
+  mounted() { if (this.token) { this.loadAll(); this.loadCorrectionCount(); } },
+  methods: {
+    toast(m) { this.msg = m; setTimeout(() => this.msg = '', 2000); },
+    async req(path, opts = {}) {
+      opts.headers = Object.assign({ 'token': this.token }, opts.headers || {});
+      const res = await fetch(API + path, opts);
+      const data = await res.json();
+      // token 失效（服务重启后 redis 缓存清空）→ 自动退回登录页
+      if (data && data.msg === 'fail' && typeof data.data === 'string' &&
+          (data.data.indexOf('令牌') >= 0 || data.data.indexOf('权限') >= 0 || data.data.indexOf('登录') >= 0)) {
+        this.toast('登录已过期，请重新登录');
+        this.token = '';
+        localStorage.removeItem('admin_token');
+      }
+      return data;
+    },
+    async reqJSON(path, body) {
+      return this.req(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    },
+    async login() {
+      const d = await this.reqJSON('/mobile/login', this.loginForm);
+      if (d.msg === 'ok') {
+        this.token = d.data.token;
+        this.username = d.data.username;
+        localStorage.setItem('admin_token', this.token);
+        localStorage.setItem('admin_username', this.username);
+        this.loadAll();
+      } else {
+        this.toast(typeof d.data === 'string' ? d.data : '登录失败');
+      }
+    },
+    logout() {
+      this.token = ''; localStorage.removeItem('admin_token');
+    },
+    async loadAll() { this.loadCourses(); this.loadBanners(); },
+    async loadCourses() {
+      const d = await this.req('/admin/course/list');
+      if (d.msg === 'ok') this.courses = d.data;
+    },
+    async loadBanners() {
+      const d = await this.req('/admin/banner/list');
+      if (d.msg === 'ok') this.banners = d.data;
+    },
+    typeText(t) { return { media: '图文', audio: '音频', video: '视频', column: '专栏' }[t] || t; },
+    openCourse(c) {
+      this.courseForm = c ? Object.assign({}, c) : { type: 'media', status: 1, price: 0, t_price: 0, study_count: 0, sort: 0 };
+      this.courseModal = true;
+    },
+    async saveCourse() {
+      if (!this.courseForm.title) return this.toast('请填写课程标题');
+      const d = await this.reqJSON('/admin/course/save', this.courseForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.courseModal = false; this.loadCourses(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delCourse(c) {
+      if (!confirm('确定删除「' + c.title + '」？')) return;
+      const d = await this.reqJSON('/admin/course/destroy', { id: c.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadCourses(); }
+    },
+    openBanner(b) { this.bannerForm = b ? Object.assign({}, b) : { course_id: 0 }; this.bannerModal = true; },
+    async saveBanner() {
+      if (!this.bannerForm.cover) return this.toast('请上传图片');
+      const d = await this.reqJSON('/admin/banner/save', this.bannerForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.bannerModal = false; this.loadBanners(); }
+      else this.toast('保存失败');
+    },
+    async delBanner(b) {
+      if (!confirm('确定删除？')) return;
+      const d = await this.reqJSON('/admin/banner/destroy', { id: b.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadBanners(); }
+    },
+    // ===== 题库 =====
+    goPapers() { this.tab = 'paper'; this.curPaper = null; this.loadPapers(); this.loadTestCats(); },
+    async loadPapers() {
+      const d = await this.req('/admin/testpaper/list');
+      if (d.msg === 'ok') this.papers = d.data;
+    },
+    openPaper(p) {
+      this.paperForm = p
+        ? Object.assign({ category_id: 0 }, p)
+        : { title: '', desc: '', category_id: 0, pass_score: 60, expire: 0, is_test: 0, status: 1 };
+      this.paperModal = true;
+    },
+    // ----- 题库分类 -----
+    async loadTestCats() {
+      const d = await this.req('/admin/category/list?type=testpaper');
+      if (d.msg === 'ok') this.testCats = d.data || [];
+    },
+    catName(id) {
+      if (!id) return '未分类';
+      const c = this.testCats.find(x => x.id === id);
+      return c ? c.title : '未分类';
+    },
+    paperCountByCat(id) {
+      return this.papers.filter(p => p.category_id === id).length;
+    },
+    openCategory(c) {
+      this.categoryForm = c
+        ? { id: c.id, title: c.title, sort: c.sort, type: 'testpaper' }
+        : { title: '', sort: 0, type: 'testpaper' };
+      this.categoryModal = true;
+    },
+    async saveCategory() {
+      if (!this.categoryForm.title) return this.toast('请填写分类名称');
+      const d = await this.reqJSON('/admin/category/save', this.categoryForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.categoryModal = false; this.loadTestCats(); this.loadPapers(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delCategory(c) {
+      if (!confirm('确定删除分类「' + c.title + '」？该分类下的试卷会变为「未分类」（试卷本身不会删）。')) return;
+      const d = await this.reqJSON('/admin/category/destroy', { id: c.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadTestCats(); this.loadPapers(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '删除失败');
+    },
+    // ===== 首页图标 =====
+    goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); },
+    async loadNavIcons() {
+      const d = await this.req('/admin/nav_icon/list');
+      if (d.msg === 'ok') this.navIcons = d.data || [];
+    },
+    navModuleText(m) {
+      return { test: '题库', book: '电子书', course: '课程', column: '专栏', 'my-test': '我的考试', 'my-book': '我的书架' }[m] || m;
+    },
+    openNavIcon(n) {
+      this.navIconForm = n
+        ? { id: n.id, name: n.name, emoji: n.emoji, image_url: n.image_url || '', bg_color: n.bg_color, jump_type: n.jump_type, jump_value: n.jump_value, sort: n.sort, status: n.status }
+        : { name: '', emoji: '⭐', image_url: '', bg_color: '#e8f3ff', jump_type: 'module', jump_value: 'test', sort: 0, status: 1 };
+      this.navIconModal = true;
+    },
+    async uploadNavIconImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.navIconUploading = true;
+      const fd = new FormData();
+      fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok' && d.data && d.data.url) {
+        this.navIconForm.image_url = d.data.url;
+        this.toast('图片上传成功');
+      } else this.toast(typeof d.data === 'string' ? d.data : '上传失败');
+      this.navIconUploading = false;
+      e.target.value = '';
+    },
+    async saveNavIcon() {
+      if (!this.navIconForm.name) return this.toast('请填写名称');
+      if (!this.navIconForm.jump_value) return this.toast('请配置跳转目标');
+      const d = await this.reqJSON('/admin/nav_icon/save', this.navIconForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.navIconModal = false; this.loadNavIcons(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async toggleNavIcon(n) {
+      const d = await this.reqJSON('/admin/nav_icon/save', Object.assign({}, n, { status: n.status == 1 ? 0 : 1 }));
+      if (d.msg === 'ok') { this.toast(n.status == 1 ? '已隐藏' : '已显示'); this.loadNavIcons(); }
+    },
+    async delNavIcon(n) {
+      if (!confirm('确定删除图标「' + n.name + '」？')) return;
+      const d = await this.reqJSON('/admin/nav_icon/destroy', { id: n.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadNavIcons(); }
+    },
+    async savePaper() {
+      if (!this.paperForm.title) return this.toast('请填写试卷标题');
+      const d = await this.reqJSON('/admin/testpaper/save', this.paperForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.paperModal = false; this.loadPapers(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delPaper(p) {
+      if (!confirm('确定删除「' + p.title + '」？该试卷下所有题目也会删除。')) return;
+      const d = await this.reqJSON('/admin/testpaper/destroy', { id: p.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadPapers(); }
+    },
+    async manageQuestions(p) {
+      this.curPaper = p;
+      await this.loadQuestions();
+    },
+    async loadQuestions() {
+      const d = await this.req('/admin/testpaper/read?id=' + this.curPaper.id);
+      if (d.msg === 'ok') this.questions = d.data.questions || [];
+    },
+    qTypeText(t) {
+      return { radio: '单选题', checkbox: '多选题', trueOrfalse: '判断题', completion: '填空题', answer: '问答题' }[t] || t;
+    },
+    answerText(q) {
+      const a = q.answer;
+      if (q.type === 'radio') return this.letters[a] !== undefined ? this.letters[a] : a;
+      if (q.type === 'checkbox') return Array.isArray(a) ? a.map(i => this.letters[i]).join('') : a;
+      if (q.type === 'trueOrfalse') return (a == 1) ? '对' : '错';
+      if (q.type === 'completion') return Array.isArray(a) ? a.join(' / ') : a;
+      if (q.type === 'answer') return '（人工阅卷）';
+      return a;
+    },
+    // 题目编辑
+    openQuestion(q) {
+      if (q) {
+        // 把存储结构反解析成表单字段
+        const f = {
+          id: q.id, type: q.type, title: q.title, analysis: q.analysis,
+          analysis_images: Array.isArray(q.analysis_images) ? q.analysis_images.slice() : [],
+          analysis_video: q.analysis_video || '',
+          score: q.score, sort: q.sort,
+          options: Array.isArray(q.options) ? q.options.slice() : ['', ''],
+          answer: q.answer,
+          tfAnswer: (q.type === 'trueOrfalse') ? (q.answer == 1 ? 1 : 0) : 1,
+          blanks: (q.type === 'completion' && Array.isArray(q.answer)) ? q.answer.slice() : [''],
+          refAnswer: (q.type === 'answer') ? (q.answer || '') : ''
+        };
+        if (q.type !== 'radio' && q.type !== 'checkbox') f.options = ['', ''];
+        this.questionForm = f;
+      } else {
+        this.questionForm = {
+          type: 'radio', title: '', analysis: '', analysis_images: [], analysis_video: '',
+          score: 10, sort: 0,
+          options: ['', '', '', ''], answer: null,
+          tfAnswer: 1, blanks: [''], refAnswer: ''
+        };
+      }
+      this.questionModal = true;
+    },
+    onTypeChange() {
+      const f = this.questionForm;
+      if (f.type === 'radio') f.answer = null;
+      if (f.type === 'checkbox') f.answer = [];
+      if ((f.type === 'radio' || f.type === 'checkbox') && (!f.options || !f.options.length)) f.options = ['', '', '', ''];
+    },
+    addOption() { this.questionForm.options.push(''); },
+    removeOption(i) {
+      this.questionForm.options.splice(i, 1);
+      // 维护已选答案
+      const f = this.questionForm;
+      if (f.type === 'radio') { if (f.answer === i) f.answer = null; else if (f.answer > i) f.answer--; }
+      if (f.type === 'checkbox' && Array.isArray(f.answer)) {
+        f.answer = f.answer.filter(x => x !== i).map(x => x > i ? x - 1 : x);
+      }
+    },
+    isOptChecked(i) {
+      const f = this.questionForm;
+      if (f.type === 'radio') return f.answer === i;
+      return Array.isArray(f.answer) && f.answer.includes(i);
+    },
+    toggleAnswer(i) {
+      const f = this.questionForm;
+      if (f.type === 'radio') { f.answer = i; return; }
+      if (!Array.isArray(f.answer)) f.answer = [];
+      const idx = f.answer.indexOf(i);
+      if (idx === -1) f.answer.push(i); else f.answer.splice(idx, 1);
+      f.answer.sort((a, b) => a - b);
+    },
+    // 把表单组装成后端要的结构
+    buildQuestionPayload() {
+      const f = this.questionForm;
+      const p = {
+        testpaper_id: this.curPaper.id,
+        type: f.type,
+        title: f.title,
+        analysis: f.analysis || '',
+        analysis_images: f.analysis_images || [],
+        analysis_video: f.analysis_video || '',
+        score: Number(f.score) || 0,
+        sort: Number(f.sort) || 0,
+        options: null,
+        answer: null
+      };
+      if (f.id) p.id = f.id;
+      if (f.type === 'radio') {
+        p.options = f.options.filter(o => o !== undefined);
+        p.answer = f.answer;
+      } else if (f.type === 'checkbox') {
+        p.options = f.options.filter(o => o !== undefined);
+        p.answer = f.answer || [];
+      } else if (f.type === 'trueOrfalse') {
+        p.answer = Number(f.tfAnswer);
+      } else if (f.type === 'completion') {
+        p.answer = f.blanks.filter(b => b !== undefined && b !== '');
+      } else if (f.type === 'answer') {
+        p.answer = f.refAnswer || '';
+      }
+      return p;
+    },
+    async saveQuestion() {
+      const f = this.questionForm;
+      if (!f.title) return this.toast('请填写题干');
+      if (f.type === 'radio' && (f.answer === null || f.answer === undefined)) return this.toast('请勾选正确答案');
+      if (f.type === 'checkbox' && (!f.answer || !f.answer.length)) return this.toast('请至少勾选一个正确答案');
+      if (f.type === 'completion' && !f.blanks.filter(b => b).length) return this.toast('请填写填空答案');
+      const payload = this.buildQuestionPayload();
+      const d = await this.reqJSON('/admin/question/save', payload);
+      if (d.msg === 'ok') {
+        this.toast('保存成功'); this.questionModal = false;
+        await this.loadQuestions(); this.loadPapers();
+      } else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delQuestion(q) {
+      if (!confirm('确定删除该题目？')) return;
+      const d = await this.reqJSON('/admin/question/destroy', { id: q.id });
+      if (d.msg === 'ok') { this.toast('已删除'); await this.loadQuestions(); this.loadPapers(); }
+    },
+    // 批量导入
+    openImport() { this.importText = ''; this.importModal = true; },
+    fillImportSample() {
+      this.importText = JSON.stringify([
+        { type: 'radio', title: '1+1=?', options: ['1', '2', '3'], answer: 1, analysis: '基础算术', score: 10 },
+        { type: 'checkbox', title: '以下哪些是偶数？', options: ['2', '3', '4', '5'], answer: [0, 2], analysis: '2和4是偶数', score: 10 },
+        { type: 'trueOrfalse', title: '地球是圆的。', answer: 1, analysis: '正确', score: 10 },
+        { type: 'completion', title: '中国的首都是____。', answer: ['北京'], analysis: '北京', score: 10 },
+        { type: 'answer', title: '简述什么是变量。', answer: '存储数据的容器', analysis: '略', score: 10 }
+      ], null, 2);
+    },
+    async doImport() {
+      let arr;
+      try { arr = JSON.parse(this.importText); }
+      catch (e) { return this.toast('JSON 格式错误：' + e.message); }
+      if (!Array.isArray(arr) || !arr.length) return this.toast('请粘贴非空 JSON 数组');
+      const d = await this.reqJSON('/admin/question/import', { testpaper_id: this.curPaper.id, questions: arr });
+      if (d.msg === 'ok') {
+        this.toast('成功导入 ' + d.data.imported + ' 题' + (d.data.errors.length ? '，' + d.data.errors.length + ' 题失败' : ''));
+        this.importModal = false;
+        await this.loadQuestions(); this.loadPapers();
+      } else this.toast(typeof d.data === 'string' ? d.data : '导入失败');
+    },
+    // ===== 订单 =====
+    goOrders() { this.tab = 'order'; this.loadOrders(); },
+    switchOrder(s) { this.orderStatus = s; this.loadOrders(); },
+    async loadOrders() {
+      const q = this.orderStatus === '' ? '' : ('?status=' + this.orderStatus);
+      const d = await this.req('/admin/order/list' + q);
+      if (d.msg === 'ok') this.orders = d.data.rows;
+    },
+    async confirmOrder(o) {
+      if (!confirm('确认该订单已支付？将开通对应内容')) return;
+      const d = await this.reqJSON('/admin/order/status', { id: o.id, status: 1 });
+      if (d.msg === 'ok') { this.toast('已确认支付'); this.loadOrders(); }
+    },
+    async cancelOrder(o) {
+      if (!confirm('取消该订单？')) return;
+      const d = await this.reqJSON('/admin/order/status', { id: o.id, status: 2 });
+      if (d.msg === 'ok') { this.toast('已取消'); this.loadOrders(); }
+    },
+    // ===== 阅卷 =====
+    goGrade() { this.tab = 'grade'; this.curRecord = null; this.loadRecords(); },
+    switchGrade(s) { this.gradeStatus = s; this.loadRecords(); },
+    async loadRecords() {
+      const d = await this.req('/admin/user_test/pending?status=' + this.gradeStatus);
+      if (d.msg === 'ok') this.records = d.data.rows;
+    },
+    fmtTime(ts) {
+      if (!ts) return '';
+      const dt = new Date(ts); const p = n => n < 10 ? '0' + n : '' + n;
+      return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    },
+    fmtUserVal(q) {
+      const v = q.userValue;
+      if (v === null || v === undefined) return '（未作答）';
+      if (q.type === 'radio') return this.letters[v] !== undefined ? this.letters[v] : v;
+      if (q.type === 'checkbox') return Array.isArray(v) ? v.map(i => this.letters[i]).join('') : v;
+      if (q.type === 'trueOrfalse') return (v == 1) ? '对' : '错';
+      if (q.type === 'completion') return Array.isArray(v) ? v.join(' / ') : v;
+      return v;
+    },
+    async openGrade(r) {
+      const d = await this.req('/admin/user_test/read?id=' + r.id);
+      if (d.msg !== 'ok') return this.toast('加载失败');
+      this.curRecord = d.data;
+      this.gradeDetail = d.data.detail || [];
+      // 初始化问答题给分输入（用已有 gain）
+      const input = {};
+      this.gradeDetail.forEach(q => { if (q.manual) input[q.id] = Number(q.gain || 0); });
+      this.gradeInput = input;
+    },
+    liveScore() {
+      let s = 0;
+      this.gradeDetail.forEach(q => {
+        if (q.manual) {
+          let g = Number(this.gradeInput[q.id]);
+          if (isNaN(g) || g < 0) g = 0;
+          if (g > Number(q.score)) g = Number(q.score);
+          s += g;
+        } else {
+          s += Number(q.gain || 0);
+        }
+      });
+      return s;
+    },
+    async submitGrade() {
+      const d = await this.reqJSON('/admin/user_test/grade', { id: this.curRecord.id, grades: this.gradeInput });
+      if (d.msg === 'ok') {
+        this.toast('阅卷完成，总分 ' + d.data.score + (d.data.is_pass ? '（及格）' : '（不及格）'));
+        this.curRecord = null;
+        this.loadRecords();
+      } else this.toast(typeof d.data === 'string' ? d.data : '提交失败');
+    },
+    // ===== 电子书 =====
+    goBooks() { this.tab = 'book'; this.curBook = null; this.loadBooks(); },
+    goCorrections() { this.tab = 'correction'; this.loadCorrections(this.corrStatus); },
+    async loadCorrectionCount() {
+      const d = await this.req('/admin/correction/pending_count');
+      if (d && d.msg === 'ok') this.correctionPending = (d.data && d.data.count) || 0;
+    },
+    async loadCorrections(status) {
+      this.corrStatus = status;
+      let q = '';
+      if (status !== '' && status !== undefined && status !== null) q = '?status=' + status;
+      const d = await this.req('/admin/correction/list' + q);
+      if (d && d.msg === 'ok') this.corrections = (d.data && d.data.rows) || [];
+    },
+    async handleCorrection(c) {
+      const action = window.prompt('处理纠错：\n输入 1 = 已采纳（标记处理）\n输入 2 = 已驳回\n（可在下一步填回复）', '1');
+      if (action === null) return;
+      const status = parseInt(action);
+      if (status !== 1 && status !== 2) return this.toast('请输入 1 或 2');
+      const reply = window.prompt('回复内容（可留空）：', c.reply || '') || '';
+      const d = await this.req('/admin/correction/handle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, status, reply })
+      });
+      if (d && d.msg === 'ok') {
+        this.toast('已处理');
+        this.loadCorrections(this.corrStatus);
+        this.loadCorrectionCount();
+      } else {
+        this.toast((d && d.data) || '处理失败');
+      }
+    },
+    async loadBooks() {
+      const d = await this.req('/admin/book/list');
+      if (d.msg === 'ok') this.books = d.data;
+    },
+    openBook(b) {
+      this.bookForm = b
+        ? Object.assign({ book_type: 'chapter', file_url: '' }, b)
+        : { title: '', author: '', cover: '', price: 0, t_price: 0, sub_count: 0, sort: 0, status: 1, try: '', desc: '', book_type: 'chapter', file_url: '' };
+      this.bookModal = true;
+    },
+    async uploadPdf(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.toast('PDF 上传中...');
+      const fd = new FormData();
+      fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok') { this.bookForm.file_url = d.data.url; this.toast('PDF 上传成功'); }
+      else this.toast(typeof d.data === 'string' ? d.data : '上传失败');
+    },
+    // 解析配图：多张
+    async uploadAnalysisImages(e) {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      if (!Array.isArray(this.questionForm.analysis_images)) this.$set(this.questionForm, 'analysis_images', []);
+      this.anaImgUploading = true;
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+        if (d.msg === 'ok' && d.data && d.data.url) this.questionForm.analysis_images.push(d.data.url);
+        else this.toast(typeof d.data === 'string' ? d.data : '图片上传失败');
+      }
+      this.anaImgUploading = false;
+      e.target.value = '';
+    },
+    // 解析视频：单个
+    async uploadAnalysisVideo(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.anaVideoUploading = true;
+      const fd = new FormData();
+      fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok' && d.data && d.data.url) { this.$set(this.questionForm, 'analysis_video', d.data.url); this.toast('视频上传成功'); }
+      else this.toast(typeof d.data === 'string' ? d.data : '视频上传失败');
+      this.anaVideoUploading = false;
+      e.target.value = '';
+    },
+    async saveBook() {
+      if (!this.bookForm.title) return this.toast('请填写书名');
+      if (this.bookForm.book_type === 'pdf' && !this.bookForm.file_url) return this.toast('请上传 PDF 文件');
+      const d = await this.reqJSON('/admin/book/save', this.bookForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.bookModal = false; this.loadBooks(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delBook(b) {
+      if (!confirm('确定删除「' + b.title + '」？该书所有章节也会删除。')) return;
+      const d = await this.reqJSON('/admin/book/destroy', { id: b.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadBooks(); }
+    },
+    async manageChapters(b) {
+      this.curBook = b;
+      await this.loadChapters();
+    },
+    async loadChapters() {
+      const d = await this.req('/admin/book/read?id=' + this.curBook.id);
+      if (d.msg === 'ok') this.chapters = d.data.chapters || [];
+    },
+    openChapter(c) {
+      this.chapterForm = c
+        ? Object.assign({}, c)
+        : { book_id: this.curBook.id, title: '', content: '', isfree: 1, sort: (this.chapters.length + 1) };
+      this.chapterModal = true;
+    },
+    async saveChapter() {
+      if (!this.chapterForm.title) return this.toast('请填写章节标题');
+      this.chapterForm.book_id = this.curBook.id;
+      const d = await this.reqJSON('/admin/book/chapter/save', this.chapterForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.chapterModal = false; await this.loadChapters(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delChapter(c) {
+      if (!confirm('确定删除章节「' + c.title + '」？')) return;
+      const d = await this.reqJSON('/admin/book/chapter/destroy', { id: c.id });
+      if (d.msg === 'ok') { this.toast('已删除'); await this.loadChapters(); }
+    },
+    async uploadCover(e, which) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.toast('上传中...');
+      const fd = new FormData();
+      fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok') {
+        if (which === 'course') this.courseForm.cover = d.data.url;
+        else if (which === 'book') this.bookForm.cover = d.data.url;
+        else this.bannerForm.cover = d.data.url;
+        this.toast('上传成功');
+      } else this.toast('上传失败');
+    }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

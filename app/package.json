@@ -1,0 +1,45 @@
+{
+  "name": "uniapp-online-edu",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:h5": "cross-env NODE_ENV=development UNI_PLATFORM=h5 UNI_INPUT_DIR=/home/be/000beuniapp/codemaster/coder UNI_CLI_CONTEXT=/home/be/000beuniapp/codemaster/coder vue-cli-service uni-serve",
+    "build:h5": "cross-env NODE_ENV=production UNI_PLATFORM=h5 UNI_INPUT_DIR=/home/be/000beuniapp/codemaster/coder UNI_CLI_CONTEXT=/home/be/000beuniapp/codemaster/coder vue-cli-service uni-build",
+    "dev:mp-weixin": "cross-env NODE_ENV=development UNI_PLATFORM=mp-weixin UNI_INPUT_DIR=/home/be/000beuniapp/codemaster/coder UNI_CLI_CONTEXT=/home/be/000beuniapp/codemaster/coder vue-cli-service uni-build --watch",
+    "build:app-plus": "cross-env NODE_ENV=production UNI_PLATFORM=app-plus UNI_INPUT_DIR=/home/be/000beuniapp/codemaster/coder UNI_CLI_CONTEXT=/home/be/000beuniapp/codemaster/coder UNI_OUTPUT_DIR=/home/be/000beuniapp/codemaster/coder/dist/app-plus vue-cli-service uni-build"
+  },
+  "dependencies": {
+    "@dcloudio/uni-cli-i18n": "2.0.2-3090920231225001",
+    "@dcloudio/uni-cli-shared": "2.0.2-3090920231225001",
+    "@dcloudio/uni-console": "^3.0.0-alpha-4040120241205001",
+    "@dcloudio/uni-i18n": "^2.0.2-alpha-5010220260604002",
+    "@dcloudio/uni-migration": "2.0.2-3090920231225001",
+    "@dcloudio/uni-template-compiler": "2.0.2-3090920231225001",
+    "@dcloudio/uni-ui": "^1.4.28",
+    "@dcloudio/webpack-uni-mp-loader": "2.0.2-3090920231225001",
+    "@dcloudio/webpack-uni-pages-loader": "2.0.2-3090920231225001",
+    "@vue/cli-plugin-babel": "~4.5.19",
+    "cache-loader": "^4.1.0",
+    "copy-webpack-plugin": "^5.1.2",
+    "file-loader": "^4.3.0",
+    "html-webpack-plugin": "^3.2.0",
+    "thread-loader": "^2.1.3",
+    "url-loader": "^2.3.0",
+    "vue": "^2.6.14",
+    "vuex": "^3.6.2",
+    "webpack": "^4.47.0",
+    "webpack-dev-server": "^3.11.3",
+    "xgplayer": "^3.0.24",
+    "xgplayer-flv": "^3.0.24"
+  },
+  "devDependencies": {
+    "@dcloudio/uni-app": "2.0.2-3090920231225001",
+    "@dcloudio/uni-app-plus": "2.0.2-3090920231225001",
+    "@dcloudio/uni-h5": "2.0.2-3090920231225001",
+    "@dcloudio/uni-mp-weixin": "2.0.2-3090920231225001",
+    "@dcloudio/vue-cli-plugin-uni": "2.0.2-3090920231225001",
+    "@vue/cli-service": "^4.5.19",
+    "cross-env": "^7.0.3",
+    "sass": "^1.39.0",
+    "sass-loader": "^10.2.0"
+  }
+}
