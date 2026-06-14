@@ -54,6 +54,8 @@ module.exports = app => {
   router.get('/mobile/practice/wrong', controller.practice.wrongList);
   router.get('/mobile/practice/favalist', controller.practice.favaList);
   router.post('/mobile/practice/remove_wrong', controller.practice.removeWrong);
+  // 学习时长心跳（需登录）
+  router.post('/mobile/study/heartbeat', controller.study.heartbeat);
   // 答案纠错（需登录）
   router.post('/mobile/correction/submit', controller.correction.submit);
   // 题目功能条：点赞 / 留言讨论（需登录）

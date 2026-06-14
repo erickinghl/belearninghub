@@ -158,11 +158,35 @@
 		},
 		onShow(){
 			this.getData()
+			this.startStudyHeartbeat()
+		},
+		onHide(){
+			this.stopStudyHeartbeat()
 		},
 		beforeDestroy(){
 			this.updateUserHistory()
+			this.stopStudyHeartbeat()
 		},
 		methods: {
+			// ===== 学习时长心跳：在课程页停留时，每60秒上报一次 =====
+			startStudyHeartbeat(){
+				if(this._studyTimer) return
+				// 只有登录了才上报
+				if(!this.$store.state.token) return
+				this._studyTimer = setInterval(()=>{
+					// 页面不可见时不上报（H5 切到别的标签页/最小化）
+					// #ifdef H5
+					if(typeof document !== 'undefined' && document.hidden) return
+					// #endif
+					this.$api.studyHeartbeat({ course_id: this.detail.id || 0, seconds: 60 }).catch(()=>{})
+				}, 60000)
+			},
+			stopStudyHeartbeat(){
+				if(this._studyTimer){
+					clearInterval(this._studyTimer)
+					this._studyTimer = null
+				}
+			},
 			submit(){
 				// 立即拼团
 				if(this.group_id){

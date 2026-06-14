@@ -21,7 +21,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '54f02889-6228-11f1-8cd5-743af4016792:1-420';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '54f02889-6228-11f1-8cd5-743af4016792:1-432';
 
 --
 -- Table structure for table `SequelizeMeta`
@@ -493,7 +493,7 @@ CREATE TABLE `question_correction` (
   PRIMARY KEY (`id`),
   KEY `idx_status` (`status`),
   KEY `idx_q` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -521,7 +521,7 @@ CREATE TABLE `question_like` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_user_q` (`user_id`,`question_id`),
   KEY `idx_q` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -565,6 +565,36 @@ INSERT INTO `recharge_log` VALUES (3,3,30.00,30.00,'admin','后台充值','2026-
 UNLOCK TABLES;
 
 --
+-- Table structure for table `study_log`
+--
+
+DROP TABLE IF EXISTS `study_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `study_log` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL DEFAULT '0',
+  `course_id` int NOT NULL DEFAULT '0' COMMENT '学习的课程id(0=未指定)',
+  `study_date` date NOT NULL COMMENT '学习日期(按天聚合)',
+  `seconds` int NOT NULL DEFAULT '0' COMMENT '当天该课程累计学习秒数',
+  `created_time` datetime DEFAULT NULL,
+  `updated_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_user_course_date` (`user_id`,`course_id`,`study_date`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `study_log`
+--
+
+LOCK TABLES `study_log` WRITE;
+/*!40000 ALTER TABLE `study_log` DISABLE KEYS */;
+/*!40000 ALTER TABLE `study_log` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `sys_setting`
 --
 
@@ -588,7 +618,7 @@ CREATE TABLE `sys_setting` (
 
 LOCK TABLES `sys_setting` WRITE;
 /*!40000 ALTER TABLE `sys_setting` DISABLE KEYS */;
-INSERT INTO `sys_setting` VALUES (1,'default_avatar','','2026-06-13 05:03:46','2026-06-14 11:24:10'),(2,'video_max_mb','50','2026-06-13 19:52:22','2026-06-14 10:57:18');
+INSERT INTO `sys_setting` VALUES (1,'default_avatar','http://172.16.0.2:7001/public/uploads/2026/06/13/1781409009488752.jpg','2026-06-13 05:03:46','2026-06-14 11:50:09'),(2,'video_max_mb','50','2026-06-13 19:52:22','2026-06-14 10:57:18');
 /*!40000 ALTER TABLE `sys_setting` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -841,4 +871,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-13 20:34:32
+-- Dump completed on 2026-06-13 22:39:42

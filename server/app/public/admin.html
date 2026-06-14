@@ -159,6 +159,11 @@
                 <button class="btn btn-primary btn-sm" @click="rechargeMember(memberDetail.user)">充值</button>
               </span>
             </div>
+            <!-- 学习时长条 -->
+            <div style="display:flex;align-items:center;gap:20px;background:#f1f7f3;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+              <div>⏱ 累计学习：<b style="color:#43b876;">{{ fmtDuration(memberDetail.stat.study_total_seconds) }}</b></div>
+              <div>今日：<b>{{ fmtDuration(memberDetail.stat.study_today_seconds) }}</b></div>
+            </div>
             <!-- 统计数字 -->
             <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
               <div v-for="(s,si) in memberStatCards" :key="si" style="flex:1;min-width:90px;background:#f7f8fa;border-radius:8px;padding:10px 12px;text-align:center;">
@@ -166,6 +171,18 @@
                 <div style="font-size:12px;color:#999;margin-top:2px;">{{ s.label }}</div>
               </div>
             </div>
+            <!-- 各课程学习时长 -->
+            <h3 style="font-size:14px;margin:12px 0 6px;">⏱ 各课程学习时长（{{ (memberDetail.study_by_course||[]).length }}）</h3>
+            <table v-if="memberDetail.study_by_course && memberDetail.study_by_course.length">
+              <thead><tr><th>课程</th><th>学习时长</th></tr></thead>
+              <tbody>
+                <tr v-for="c in memberDetail.study_by_course" :key="c.course_id">
+                  <td>{{ c.title }}</td>
+                  <td>{{ fmtDuration(c.seconds) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无学习记录</div>
             <!-- 考试记录 -->
             <h3 style="font-size:14px;margin:12px 0 6px;">考试记录（{{ memberDetail.tests.length }}）</h3>
             <table v-if="memberDetail.tests.length">
@@ -1313,6 +1330,7 @@ createApp({
         { label: '总收入(￥)', val: o.income || '0.00' },
         { label: '累计做题', val: o.question_done || 0 },
         { label: '考试次数', val: o.test_total || 0 },
+        { label: '学习时长(时)', val: o.study_hours || '0.0' },
       ];
     },
     memberStatCards() {
@@ -1874,6 +1892,15 @@ D.destroyed
       if (!ts) return '';
       const dt = new Date(ts); const p = n => n < 10 ? '0' + n : '' + n;
       return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    },
+    // 秒数 → "X小时Y分钟" / "Y分钟" 的友好显示
+    fmtDuration(sec) {
+      sec = Number(sec) || 0;
+      if (sec < 60) return sec + ' 秒';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      if (h > 0) return h + ' 小时 ' + m + ' 分钟';
+      return m + ' 分钟';
     },
     fmtUserVal(q) {
       const v = q.userValue;

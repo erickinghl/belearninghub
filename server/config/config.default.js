@@ -36,6 +36,7 @@ module.exports = appInfo => {
       '/mobile/testpaper/read',
       '/mobile/user_test/',
       '/mobile/practice/',
+      '/mobile/study/',
       '/mobile/correction/',
       '/mobile/question/',
       '/mobile/mybook',

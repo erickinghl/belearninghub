@@ -135,6 +135,27 @@ class MemberController extends Controller {
         const rechargeRows = JSON.parse(JSON.stringify(recharges));
         const totalRecharge = rechargeRows.filter(r => Number(r.amount) > 0).reduce((s, r) => s + Number(r.amount), 0);
 
+        // ===== 学习时长 =====
+        const studyRows = JSON.parse(JSON.stringify(await app.model.StudyLog.findAll({ where: { user_id: id } })));
+        const totalSeconds = studyRows.reduce((s, r) => s + Number(r.seconds || 0), 0);
+        const d0 = new Date();
+        const todayStr = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`;
+        const todaySeconds = studyRows.filter(r => String(r.study_date).slice(0, 10) === todayStr).reduce((s, r) => s + Number(r.seconds || 0), 0);
+        // 按课程汇总时长（关联课程标题）
+        const byCourse = {};
+        studyRows.forEach(r => { byCourse[r.course_id] = (byCourse[r.course_id] || 0) + Number(r.seconds || 0); });
+        const studyCourseIds = Object.keys(byCourse).map(Number).filter(x => x > 0);
+        const scmap = {};
+        if (studyCourseIds.length) {
+            const scs = await app.model.Course.findAll({ where: { id: studyCourseIds }, attributes: ['id', 'title'] });
+            JSON.parse(JSON.stringify(scs)).forEach(c => { scmap[c.id] = c.title; });
+        }
+        const studyByCourse = Object.keys(byCourse).map(cid => ({
+            course_id: Number(cid),
+            title: Number(cid) > 0 ? (scmap[cid] || ('课程#' + cid)) : '未指定课程',
+            seconds: byCourse[cid],
+        })).sort((a, b) => b.seconds - a.seconds);
+
         // ===== 互动记录：留言 / 点赞 / 纠错（都要关联题目标题，GM 才看得懂在哪道题） =====
         const comments = JSON.parse(JSON.stringify(await app.model.QuestionComment.findAll({ where: { user_id: id }, order: [['id', 'DESC']], limit: 30 })));
         const likes = JSON.parse(JSON.stringify(await app.model.QuestionLike.findAll({ where: { user_id: id }, order: [['id', 'DESC']], limit: 30 })));
@@ -172,6 +193,8 @@ class MemberController extends Controller {
                 comment_count: comments.length,
                 like_count: likes.length,
                 correction_count: corrections.length,
+                study_total_seconds: totalSeconds,
+                study_today_seconds: todaySeconds,
             },
             tests: testRows,
             orders: orderRows,
@@ -181,6 +204,7 @@ class MemberController extends Controller {
             corrections,
             notes,
             favas,
+            study_by_course: studyByCourse,
         });
     }
 
@@ -269,6 +293,9 @@ class MemberController extends Controller {
         const income = paidOrders.reduce((s, o) => s + Number(o.price || 0), 0);
         const doneTotal = await app.model.UserQuestion.count();
         const testTotal = await app.model.UserTest.count();
+        // 全平台累计学习时长（小时）
+        const studyAll = await app.model.StudyLog.findAll({ attributes: ['seconds'], raw: true });
+        const studyHours = studyAll.reduce((s, r) => s + Number(r.seconds || 0), 0) / 3600;
 
         ctx.apiSuccess({
             user_total: userTotal,
@@ -277,6 +304,7 @@ class MemberController extends Controller {
             income: income.toFixed(2),
             question_done: doneTotal,
             test_total: testTotal,
+            study_hours: studyHours.toFixed(1),
         });
     }
 }

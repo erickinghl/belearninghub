@@ -128,6 +128,10 @@ export default {
 	getConfig(){
 		return api.get('/mobile/config')
 	},
+	// 学习时长心跳（看课程时每60秒上报一次）
+	studyHeartbeat(data){
+		return api.post('/mobile/study/heartbeat',data)
+	},
 	// 答案纠错
 	correctionSubmit(data){
 		return api.post('/mobile/correction/submit',data)
