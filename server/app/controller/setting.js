@@ -12,17 +12,35 @@ class SettingController extends Controller {
         ctx.apiSuccess(obj);
     }
 
-    // 公开：前端拿全局配置（默认头像等）
+    // 公开：前端拿全局配置（默认头像 + 站点信息 + footer）
     async publicConfig() {
         const { app, ctx } = this;
-        const da = await app.model.SysSetting.findOne({ where: { skey: 'default_avatar' } });
-        let defaultAvatar = da && da.svalue ? da.svalue : '';
-        // 后台没传则用内置默认头像（绝对地址，App/H5 都能用）
+        const rows = await app.model.SysSetting.findAll();
+        const m = {};
+        rows.forEach(r => { m[r.skey] = r.svalue; });
+
+        // 默认头像：没设就用内置图
+        let defaultAvatar = m.default_avatar || '';
         if (!defaultAvatar) {
             const { protocol } = ctx.request;
             defaultAvatar = protocol + '://' + app.config.webUrl + '/public/avatar-default.png';
         }
-        ctx.apiSuccess({ default_avatar: defaultAvatar });
+        // footer_links 是 JSON 字符串，解析成数组
+        let footerLinks = [];
+        try { footerLinks = JSON.parse(m.footer_links || '[]'); } catch (e) { footerLinks = []; }
+
+        ctx.apiSuccess({
+            default_avatar: defaultAvatar,
+            site_name: m.site_name || 'EduYi 易教',
+            site_logo: m.site_logo || '',
+            site_desc: m.site_desc || '',
+            footer_links: footerLinks,
+            contact_phone: m.contact_phone || '',
+            contact_email: m.contact_email || '',
+            contact_address: m.contact_address || '',
+            copyright: m.copyright || '',
+            icp: m.icp || '',
+        });
     }
 
     // 后台：保存某个设置 body: { skey, svalue }

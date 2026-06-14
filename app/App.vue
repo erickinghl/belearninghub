@@ -7,9 +7,12 @@
 			if(this.$store.state.token){
 				this.$api.checkToken().catch(()=>{})
 			}
-			// 拉取全局默认头像配置
+			// 拉取全局配置（默认头像 + 站点信息/footer）
 			this.$api.getConfig().then(res=>{
-				if(res && res.default_avatar) this.$store.commit('setDefaultAvatar', res.default_avatar)
+				if(res){
+					if(res.default_avatar) this.$store.commit('setDefaultAvatar', res.default_avatar)
+					this.$store.commit('setSiteConfig', res)
+				}
 			}).catch(()=>{})
 		},
 		onShow: function() {

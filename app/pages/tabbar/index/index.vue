@@ -54,7 +54,12 @@
 
 			</block>
 		</view>
-		
+
+		<!-- PC 页脚 -->
+		<!-- #ifdef H5 -->
+		<pc-footer v-if="isPC && !loading"></pc-footer>
+		<!-- #endif -->
+
 	</view>
 </template>
 

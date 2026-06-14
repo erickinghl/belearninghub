@@ -6,13 +6,21 @@ export default new Vuex.Store({
 		user:null,
 		token:null,
 		// 全局默认头像（后台可配置），App 启动时从 /mobile/config 拉取
-		defaultAvatar:'/static/avatar-default.png'
+		defaultAvatar:'/static/avatar-default.png',
+		// 站点配置（标题/介绍/footer 等，后台可配）
+		siteConfig:{}
 	},
 	mutations:{
 		setDefaultAvatar(state, url){
 			if(url){
 				state.defaultAvatar = url
 				uni.setStorageSync('defaultAvatar', url)
+			}
+		},
+		setSiteConfig(state, cfg){
+			if(cfg){
+				state.siteConfig = cfg
+				uni.setStorageSync('siteConfig', JSON.stringify(cfg))
 			}
 		}
 	},
@@ -26,6 +34,8 @@ export default new Vuex.Store({
 			}
 			let da = uni.getStorageSync('defaultAvatar')
 			if(da) state.defaultAvatar = da
+			let sc = uni.getStorageSync('siteConfig')
+			if(sc){ try{ state.siteConfig = JSON.parse(sc) }catch(e){} }
 		},
 		
 		login({ state },user){

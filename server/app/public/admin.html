@@ -660,6 +660,50 @@
           </div>
         </div>
 
+        <!-- 站点信息 + 页脚设置 -->
+        <div class="card">
+          <h2>站点信息 &amp; 页脚（网页端显示）</h2>
+          <p style="font-size:12px;color:#999;margin:-6px 0 14px;">这里改的内容会显示在 PC 网页端的顶部品牌和底部页脚。</p>
+
+          <div class="row2">
+            <div class="form-row"><label>站点标题</label><input v-model="site.site_name" placeholder="EduYi 易教"></div>
+            <div class="form-row">
+              <label>站点 Logo</label>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <img v-if="site.site_logo" :src="site.site_logo" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #eee;">
+                <label class="btn btn-plain btn-sm" style="cursor:pointer;">
+                  {{ logoUploading ? '上传中…' : '上传Logo' }}
+                  <input type="file" accept="image/*" style="display:none;" @change="uploadSiteLogo">
+                </label>
+                <button v-if="site.site_logo" class="btn btn-plain btn-sm" @click="site.site_logo=''">移除</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-row"><label>一句话介绍</label><textarea v-model="site.site_desc" placeholder="专注在线教育，让学习更高效……"></textarea></div>
+
+          <div class="form-row">
+            <label>快捷链接（页脚导航）</label>
+            <div v-for="(l,i) in footerLinks" :key="i" style="display:flex;gap:8px;margin-bottom:8px;">
+              <input v-model="l.name" placeholder="名称(如 关于我们)" style="flex:1;">
+              <input v-model="l.url" placeholder="链接(站内 /pages/.. 或 https://..，可留空)" style="flex:2;">
+              <button class="btn btn-danger btn-sm" @click="footerLinks.splice(i,1)">×</button>
+            </div>
+            <button class="btn btn-plain btn-sm" @click="footerLinks.push({name:'',url:''})">+ 添加链接</button>
+          </div>
+
+          <div class="row2">
+            <div class="form-row"><label>联系电话</label><input v-model="site.contact_phone" placeholder="400-000-0000"></div>
+            <div class="form-row"><label>联系邮箱</label><input v-model="site.contact_email" placeholder="support@xxx.com"></div>
+          </div>
+          <div class="form-row"><label>联系地址</label><input v-model="site.contact_address" placeholder="（可留空）"></div>
+          <div class="row2">
+            <div class="form-row"><label>版权信息</label><input v-model="site.copyright" placeholder="© 2026 EduYi 易教 版权所有"></div>
+            <div class="form-row"><label>ICP 备案号</label><input v-model="site.icp" placeholder="（可留空）"></div>
+          </div>
+
+          <div style="margin-top:6px;"><button class="btn btn-primary" @click="saveSite">保存站点设置</button></div>
+        </div>
+
         <div class="card">
           <h2>首页宫格图标
             <button class="btn btn-primary btn-sm" style="float:right" @click="openNavIcon()">+ 新建图标</button>
@@ -1274,6 +1318,9 @@ createApp({
       avatarUploading: false,
       presetAvatars: ['/public/avatars/avatar-1.png', '/public/avatars/avatar-2.png', '/public/avatars/avatar-3.png', '/public/avatars/avatar-4.png'],
       videoMaxMb: 50,
+      site: { site_name: '', site_logo: '', site_desc: '', contact_phone: '', contact_email: '', contact_address: '', copyright: '', icp: '' },
+      footerLinks: [],
+      logoUploading: false,
       anaImgUploading: false,
       anaVideoUploading: false,
       importText: '',
@@ -1550,10 +1597,39 @@ createApp({
     goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); this.loadSettings(); },
     async loadSettings() {
       const d = await this.req('/admin/setting/list');
-      if (d.msg === 'ok') {
-        this.defaultAvatar = (d.data && d.data.default_avatar) || '';
-        if (d.data && d.data.video_max_mb) this.videoMaxMb = parseFloat(d.data.video_max_mb) || 50;
+      if (d.msg === 'ok' && d.data) {
+        const x = d.data;
+        this.defaultAvatar = x.default_avatar || '';
+        if (x.video_max_mb) this.videoMaxMb = parseFloat(x.video_max_mb) || 50;
+        // 站点信息表单
+        this.site = {
+          site_name: x.site_name || '', site_logo: x.site_logo || '', site_desc: x.site_desc || '',
+          contact_phone: x.contact_phone || '', contact_email: x.contact_email || '',
+          contact_address: x.contact_address || '', copyright: x.copyright || '', icp: x.icp || '',
+        };
+        try { this.footerLinks = JSON.parse(x.footer_links || '[]'); } catch (e) { this.footerLinks = []; }
       }
+    },
+    async uploadSiteLogo(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.logoUploading = true;
+      const fd = new FormData(); fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok' && d.data && d.data.url) this.site.site_logo = d.data.url;
+      else this.toast(typeof d.data === 'string' ? d.data : '上传失败');
+      this.logoUploading = false; e.target.value = '';
+    },
+    async saveSite() {
+      // 逐项保存（含 footer_links 转 JSON 字符串）
+      const items = Object.assign({}, this.site);
+      items.footer_links = JSON.stringify(this.footerLinks.filter(l => l.name));
+      let ok = true;
+      for (const k of Object.keys(items)) {
+        const s = await this.reqJSON('/admin/setting/save', { skey: k, svalue: items[k] });
+        if (s.msg !== 'ok') ok = false;
+      }
+      this.toast(ok ? '站点设置已保存（刷新前端生效）' : '部分保存失败');
     },
     // 选用内置头像
     async pickPresetAvatar(url) {
