@@ -98,6 +98,24 @@ class MemberController extends Controller {
         const rechargeRows = JSON.parse(JSON.stringify(recharges));
         const totalRecharge = rechargeRows.filter(r => Number(r.amount) > 0).reduce((s, r) => s + Number(r.amount), 0);
 
+        // ===== 互动记录：留言 / 点赞 / 纠错（都要关联题目标题，GM 才看得懂在哪道题） =====
+        const comments = JSON.parse(JSON.stringify(await app.model.QuestionComment.findAll({ where: { user_id: id }, order: [['id', 'DESC']], limit: 30 })));
+        const likes = JSON.parse(JSON.stringify(await app.model.QuestionLike.findAll({ where: { user_id: id }, order: [['id', 'DESC']], limit: 30 })));
+        const corrections = JSON.parse(JSON.stringify(await app.model.QuestionCorrection.findAll({ where: { user_id: id }, order: [['id', 'DESC']], limit: 30 })));
+
+        // 一次性查出涉及的题目标题，做成 map
+        const qids = [...new Set([...comments, ...likes, ...corrections].map(x => x.question_id))];
+        const qmap = {};
+        if (qids.length) {
+            const qs = await app.model.Question.findAll({ where: { id: qids }, attributes: ['id', 'title'] });
+            JSON.parse(JSON.stringify(qs)).forEach(q => { qmap[q.id] = (q.title || '').replace(/<[^>]+>/g, '').slice(0, 40); });
+        }
+        const qtitle = qid => qmap[qid] || ('题目#' + qid);
+        comments.forEach(c => { c.question_title = qtitle(c.question_id); });
+        likes.forEach(l => { l.question_title = qtitle(l.question_id); });
+        const corrStatusText = ['待处理', '已采纳', '已驳回'];
+        corrections.forEach(c => { c.question_title = qtitle(c.question_id); c.status_text = corrStatusText[Number(c.status)] || '待处理'; });
+
         ctx.apiSuccess({
             user,
             stat: {
@@ -114,10 +132,16 @@ class MemberController extends Controller {
                 fava_count: favaCount,
                 balance: Number(user.balance || 0).toFixed(2),
                 total_recharge: totalRecharge.toFixed(2),
+                comment_count: comments.length,
+                like_count: likes.length,
+                correction_count: corrections.length,
             },
             tests: testRows,
             orders: orderRows,
             recharges: rechargeRows,
+            comments,
+            likes,
+            corrections,
         });
     }
 

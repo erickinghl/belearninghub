@@ -208,6 +208,50 @@
               </tbody>
             </table>
             <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无充值记录</div>
+
+            <!-- 留言记录 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">💬 留言记录（{{ (memberDetail.comments||[]).length }}）</h3>
+            <table v-if="memberDetail.comments && memberDetail.comments.length">
+              <thead><tr><th>题目</th><th>留言内容</th><th>赞</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="c in memberDetail.comments" :key="c.id">
+                  <td style="max-width:200px;font-size:12px;color:#666;">{{ c.question_title }}</td>
+                  <td>{{ c.content }}</td>
+                  <td>{{ c.like_count }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(c.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无留言</div>
+
+            <!-- 点赞记录 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">👍 点赞记录（{{ (memberDetail.likes||[]).length }}）</h3>
+            <table v-if="memberDetail.likes && memberDetail.likes.length">
+              <thead><tr><th>点赞的题目</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="l in memberDetail.likes" :key="l.id">
+                  <td>{{ l.question_title }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(l.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无点赞</div>
+
+            <!-- 纠错记录 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">✏️ 纠错记录（{{ (memberDetail.corrections||[]).length }}）</h3>
+            <table v-if="memberDetail.corrections && memberDetail.corrections.length">
+              <thead><tr><th>题目</th><th>纠错内容</th><th>状态</th><th>回复</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="c in memberDetail.corrections" :key="c.id">
+                  <td style="max-width:160px;font-size:12px;color:#666;">{{ c.question_title }}</td>
+                  <td>{{ c.content }}</td>
+                  <td><span :style="{color: c.status==1?'#43b876':(c.status==2?'#999':'#e6730b')}">{{ c.status_text }}</span></td>
+                  <td style="font-size:12px;color:#888;">{{ c.reply || '-' }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(c.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无纠错</div>
           </div>
           <div class="modal-foot">
             <button class="btn btn-plain" @click="memberModal=false">关闭</button>
@@ -1253,6 +1297,9 @@ createApp({
         { label: '消费(￥)', val: s.total_pay || '0.00' },
         { label: '笔记', val: s.note_count || 0 },
         { label: '收藏', val: s.fava_count || 0 },
+        { label: '留言', val: s.comment_count || 0 },
+        { label: '点赞', val: s.like_count || 0 },
+        { label: '纠错', val: s.correction_count || 0 },
       ];
     },
   },
