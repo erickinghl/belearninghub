@@ -252,6 +252,36 @@
               </tbody>
             </table>
             <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无纠错</div>
+
+            <!-- 笔记 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">📝 笔记（{{ (memberDetail.notes||[]).length }}）</h3>
+            <table v-if="memberDetail.notes && memberDetail.notes.length">
+              <thead><tr><th>标题</th><th>内容</th><th>来源</th><th>附件</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="n in memberDetail.notes" :key="n.id">
+                  <td style="max-width:120px;">{{ n.title }}</td>
+                  <td style="max-width:240px;font-size:12px;color:#666;">{{ (n.content||'').slice(0,60) }}</td>
+                  <td style="font-size:12px;color:#888;">{{ n.source }}</td>
+                  <td>{{ n.attach_count ? ('📎'+n.attach_count) : '-' }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(n.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无笔记</div>
+
+            <!-- 收藏 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">⭐ 收藏（{{ (memberDetail.favas||[]).length }}）</h3>
+            <table v-if="memberDetail.favas && memberDetail.favas.length">
+              <thead><tr><th>类型</th><th>收藏的内容</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="f in memberDetail.favas" :key="f.id">
+                  <td><span class="tag" style="background:#eef5ff;color:#3b82f6;">{{ f.type_text }}</span></td>
+                  <td>{{ f.goods_title }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(f.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无收藏</div>
           </div>
           <div class="modal-foot">
             <button class="btn btn-plain" @click="memberModal=false">关闭</button>

@@ -91,6 +91,43 @@ class MemberController extends Controller {
         const noteCount = await app.model.Note.count({ where: { user_id: id } });
         const favaCount = await app.model.Fava.count({ where: { user_id: id } });
 
+        // 笔记内容列表（题目笔记关联题目标题）
+        const notes = JSON.parse(JSON.stringify(await app.model.Note.findAll({
+            where: { user_id: id }, order: [['id', 'DESC']], limit: 30,
+        })));
+        const noteQids = [...new Set(notes.filter(n => n.question_id).map(n => n.question_id))];
+        const nqmap = {};
+        if (noteQids.length) {
+            const nqs = await app.model.Question.findAll({ where: { id: noteQids }, attributes: ['id', 'title'] });
+            JSON.parse(JSON.stringify(nqs)).forEach(q => { nqmap[q.id] = (q.title || '').replace(/<[^>]+>/g, '').slice(0, 30); });
+        }
+        notes.forEach(n => {
+            n.source = n.question_id ? ('题目：' + (nqmap[n.question_id] || ('#' + n.question_id))) : '普通笔记';
+            n.attach_count = Array.isArray(n.attachments) ? n.attachments.length : 0;
+        });
+
+        // 收藏列表（fava.video_id 实为商品id；按 goods_type 关联课程/电子书拿标题）
+        const favas = JSON.parse(JSON.stringify(await app.model.Fava.findAll({
+            where: { user_id: id }, order: [['id', 'DESC']], limit: 30,
+        })));
+        const courseIds = favas.filter(f => f.goods_type !== 'book').map(f => f.video_id);
+        const bookIds = favas.filter(f => f.goods_type === 'book').map(f => f.video_id);
+        const cmap2 = {}, bmap = {};
+        if (courseIds.length) {
+            const cs = await app.model.Course.findAll({ where: { id: courseIds }, attributes: ['id', 'title', 'type'] });
+            JSON.parse(JSON.stringify(cs)).forEach(c => { cmap2[c.id] = c; });
+        }
+        if (bookIds.length) {
+            const bs = await app.model.Book.findAll({ where: { id: bookIds }, attributes: ['id', 'title'] });
+            JSON.parse(JSON.stringify(bs)).forEach(b => { bmap[b.id] = b; });
+        }
+        const favaTypeText = { course: '课程', column: '专栏', book: '电子书' };
+        favas.forEach(f => {
+            f.type_text = favaTypeText[f.goods_type] || f.goods_type;
+            if (f.goods_type === 'book') f.goods_title = bmap[f.video_id] ? bmap[f.video_id].title : ('电子书#' + f.video_id);
+            else f.goods_title = cmap2[f.video_id] ? cmap2[f.video_id].title : ('#' + f.video_id);
+        });
+
         // 充值记录
         const recharges = await app.model.RechargeLog.findAll({
             where: { user_id: id }, order: [['id', 'DESC']], limit: 30,
@@ -142,6 +179,8 @@ class MemberController extends Controller {
             comments,
             likes,
             corrections,
+            notes,
+            favas,
         });
     }
 
