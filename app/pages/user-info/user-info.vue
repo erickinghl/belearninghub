@@ -1,9 +1,12 @@
 <template>
-	<view class="ui-page">
+	<view class="ui-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<!-- 头像区：大圆头像居中，可点击更换 -->
 		<view class="ui-avatar-box" @click="changeAvatar">
 			<view class="ui-avatar-wrap">
-				<image class="ui-avatar" :src="form.avatar || defaultAvatar" mode="aspectFill"></image>
+				<image class="ui-avatar" :src="form.avatar || $store.state.defaultAvatar" mode="aspectFill"></image>
 				<view class="ui-avatar-cam">
 					<text class="ui-cam-icon">📷</text>
 				</view>
@@ -63,7 +66,6 @@
 		},
 		data() {
 			return {
-				defaultAvatar: '/static/noLogin.png',
 				uploading: false,
 				submitting: false,
 				sexSheet: false,

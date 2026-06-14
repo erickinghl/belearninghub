@@ -1,5 +1,8 @@
 <template>
-	<view class="lst-page">
+	<view class="lst-page" :class="isPC ? 'lst-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" :active="module === 'column' ? 'column' : 'course'"></pc-header>
+		<!-- #endif -->
 		<view class="lst-wrap flex flex-wrap" v-if="module == 'live'">
 			<course-list v-for="(item,index) in list" :key="index" :item="item" :type="module == 'course' || module == 'column' ? 'one' : 'two'" :tag="tag">
 				<text slot="desc" class="font-sm my-1 " :class="item.status == '直播中' ? 'text-danger' : 'text-light-muted'">{{ item.status }}</text>
@@ -123,6 +126,27 @@
 	/* #ifdef H5 */
 	.lst-page{
 		padding-top: 56px;
+	}
+	/* PC：让出顶部 PC 导航栏(60px) + 内容多留间距 */
+	.lst-page-pc{
+		padding-top: 76px;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+	/* PC 下课程/专栏列表改成两列网格，不再被拉成超宽单行 */
+	.lst-page-pc .lst-col{
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 16px;
+	}
+	.lst-page-pc .lst-col :deep(.course){
+		width: 100% !important;
+		min-width: 0 !important;
+		margin: 0 !important;
+		box-sizing: border-box;
+	}
+	.lst-page-pc .lst-col :deep(.course-body){
+		min-width: 0 !important;
 	}
 	/* #endif */
 	.lst-wrap{

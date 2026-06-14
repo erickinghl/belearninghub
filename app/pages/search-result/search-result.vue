@@ -1,5 +1,8 @@
 <template>
-	<view class="sr-page">
+	<view class="sr-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<view class="sr-kw">搜索：<text class="sr-kw-text">{{ keyword }}</text></view>
 		<tab :tabs="tabs" :current="current" @change="clickTab"></tab>
 		<view class="sr-list">

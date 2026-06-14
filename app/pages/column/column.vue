@@ -1,8 +1,11 @@
 <template>
-	<view>
-		
+	<view :class="isPC ? 'col-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="column"></pc-header>
+		<!-- #endif -->
+
 		<view class="position-relative">
-			<image :src="detail.cover || colPlaceholder" style="width: 100%;height: 210px;" mode="aspectFill" class="bg-light"></image>
+			<image :src="detail.cover || colPlaceholder" style="width: 100%;height: 210px;" mode="aspectFill" class="bg-light col-cover"></image>
 			<view class="text-white font-sm p-1" style="position: absolute;right: 20rpx;bottom: 20rpx;background-color: rgba(0,0,0,0.4);">
 				专栏
 			</view>
@@ -18,17 +21,17 @@
 		
 		<!-- 简介 -->
 		<view v-if="current == 0" class="animate__animated animate__fadeIn animate__faster">
-			<view v-if="firstLoad" class="flex flex-column p-3">
-				<text class="mb-1" style="font-size: 38rpx;">{{ detail.title }}</text>
-				<view class="flex align-center justify-between">
-					<text class="font-sm text-light-muted">{{ detail.sub_count }} 人学过</text>
+			<view v-if="firstLoad" class="col-head">
+				<text class="col-title">{{ detail.title }}</text>
+				<view class="col-meta">
+					<text class="col-learned">{{ detail.sub_count }} 人学过</text>
 					<collect-btn :isfava="detail.isfava" :goods_id="detail.id" type="column" @success="detail.isfava = $event"></collect-btn>
 				</view>
-				<view v-if="!detail.isbuy" class="flex mt-2 align-end">
-					
-					<text class="text-danger font-lg">￥{{ detail.price }}</text>
-					<text class="font-sm text-light-muted ml-1 text-through">￥{{ detail.t_price }}</text>
+				<view v-if="!detail.isbuy" class="col-price-row">
+					<text class="col-price">￥{{ detail.price }}</text>
+					<text class="col-oprice" v-if="detail.t_price">￥{{ detail.t_price }}</text>
 				</view>
+				<view v-else class="col-owned">✓ 已拥有，可学习全部内容</view>
 			</view>
 			
 			<view v-else class="flex flex-column p-3">
@@ -282,5 +285,65 @@
 </script>
 
 <style>
+	/* #ifdef H5 */
+	/* PC：让出顶栏 + 内容居中限宽 + 封面不被拉成超宽长条 */
+	.col-page-pc {
+		padding-top: 60px;
+		max-width: 820px;
+		margin: 0 auto;
+		background-color: #fff;
+		min-height: 100vh;
+	}
+	.col-page-pc .col-cover {
+		height: 300px !important;
+		border-radius: 0 0 4px 4px;
+	}
+	/* #endif */
 
+	/* 简介头部：标题/学过/收藏/价格 —— 显式 px 内边距，避免 H5 下 p-3/rpx 失效贴边 */
+	.col-head {
+		display: flex;
+		flex-direction: column;
+		padding: 16px 16px 14px;
+		background-color: #fff;
+	}
+	.col-title {
+		font-size: 20px;
+		font-weight: 700;
+		color: #1a1a1a;
+		line-height: 1.5;
+	}
+	.col-meta {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 10px;
+	}
+	.col-learned {
+		font-size: 13px;
+		color: #9aa0a6;
+	}
+	.col-price-row {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-end;
+		margin-top: 12px;
+	}
+	.col-price {
+		font-size: 22px;
+		font-weight: 700;
+		color: #ff5b5b;
+	}
+	.col-oprice {
+		font-size: 13px;
+		color: #c0c4cc;
+		text-decoration: line-through;
+		margin-left: 8px;
+	}
+	.col-owned {
+		margin-top: 12px;
+		font-size: 14px;
+		color: #43b876;
+	}
 </style>

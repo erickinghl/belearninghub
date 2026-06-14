@@ -66,10 +66,23 @@ class PracticeController extends Controller {
         const q = await app.model.Question.findByPk(question_id);
         if (!q) return ctx.throw(404, '题目不存在');
 
-        // 判对错（复用 judge 服务）
-        const verdict = ctx.service.judge.judgeOne(q, body.answer);
-        // 问答题无法自动判，按做过处理（is_right=0 不计错，可后续人工）
-        const is_right = verdict.manual ? 1 : (verdict.correct ? 1 : 0);
+        let is_right;
+        if (q.type === 'group') {
+            // 组合题：逐小题比对客户端答案数组（也可信任客户端传来的 is_right）
+            let correct = body.is_right;
+            if (correct === undefined) {
+                let answers = [];
+                try { answers = JSON.parse(q.answer); } catch (e) { answers = []; }
+                const my = Array.isArray(body.answer) ? body.answer : [];
+                correct = answers.length > 0 && answers.every((a, i) => Number(my[i]) === Number(a)) ? 1 : 0;
+            }
+            is_right = correct ? 1 : 0;
+        } else {
+            // 判对错（复用 judge 服务）
+            const verdict = ctx.service.judge.judgeOne(q, body.answer);
+            // 问答题无法自动判，按做过处理（is_right=0 不计错，可后续人工）
+            is_right = verdict.manual ? 1 : (verdict.correct ? 1 : 0);
+        }
 
         const answerStr = typeof body.answer === 'string' ? body.answer : JSON.stringify(body.answer);
 

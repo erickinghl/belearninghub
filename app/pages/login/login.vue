@@ -1,18 +1,28 @@
 <template>
 	<view>
 
-		<!-- #ifndef MP -->
-		<view class="login-back" @click="back">
-			<text style="color:#fff;font-size:24px;">‹</text>
-		</view>
-		<!-- #endif -->
-		
-		<view class="login-bg"></view>
-		
-		<view class="login">
-			<view class="flex">
-				<text class="title">{{ type == 'login' ? '登 录' : '注 册' }}</text>
+		<view class="login-bg">
+			<!-- #ifndef MP -->
+			<view class="login-back" @click="goHome">
+				<text class="login-back-arrow">‹</text>
+				<text class="login-back-text">返回首页</text>
 			</view>
+			<!-- #endif -->
+			<!-- 品牌区：Logo + 名称 + 欢迎语 -->
+			<view class="brand">
+				<view class="brand-logo">📚</view>
+				<text class="brand-name">在线教育</text>
+				<text class="brand-slogan">{{ type == 'login' ? '欢迎回来，继续你的学习' : '注册账号，开启学习之旅' }}</text>
+			</view>
+		</view>
+
+		<view class="login">
+			<!-- 登录/注册 切换标签 -->
+			<view class="login-tabs">
+				<text class="login-tab" :class="type=='login' ? 'login-tab-on' : ''" @click="type='login'">登录</text>
+				<text class="login-tab" :class="type=='reg' ? 'login-tab-on' : ''" @click="type='reg'">注册</text>
+			</view>
+
 			<view class="login-form">
 				<text class="form-icon">👤</text>
 				<input type="text" placeholder="请输入用户名" class="rounded font-md" v-model="form.username"/>
@@ -23,13 +33,13 @@
 			</view>
 			<view class="login-form" v-if="type == 'reg'">
 				<text class="form-icon">🔒</text>
-				<input type="password" password placeholder="请输入确认密码" class="rounded font-md" v-model="form.repassword"/>
+				<input type="password" password placeholder="请再次输入密码" class="rounded font-md" v-model="form.repassword"/>
 			</view>
-			
+
 			<view class="bg-main btn" hover-class="bg-main-hover" @click="submit">{{ type == 'login' ? '登 录' : '注 册' }}</view>
-			
+
 			<view class="flex align-center justify-between my-3 font">
-				<text class="py-3 text-main" @click="changeType">{{ type == 'login' ? '注册账号' : '去登录' }}</text>
+				<text class="py-3 text-main" @click="changeType">{{ type == 'login' ? '没有账号？去注册' : '已有账号？去登录' }}</text>
 				<text class="py-3 text-light-muted" @click="openForget">忘记密码？</text>
 			</view>
 			
@@ -171,6 +181,15 @@
 					delta: 1
 				});
 			},
+			// 返回首页：优先回首页 tab，回不去再退栈
+			goHome(){
+				uni.switchTab({
+					url: '/pages/tabbar/index/index',
+					fail: () => {
+						uni.reLaunch({ url: '/pages/tabbar/index/index' })
+					}
+				})
+			},
 			changeType(){
 				this.type = this.type == 'login' ? 'reg' : 'login'
 			},
@@ -238,32 +257,113 @@
 	/* 顶部绿色渐变背景 */
 	/* uni-app H5 编译器会吃掉 rpx 的 height/margin/padding，这里统一用 px */
 	.login-bg {
-		height: 180px;
+		position: relative;
+		height: 260px;
 		background: linear-gradient(135deg, #5ccc84 0%, #43b876 100%);
-		border-bottom-left-radius: 20px;
-		border-bottom-right-radius: 20px;
-	}
-	.login-back {
-		position: fixed;
-		top: 30px;
-		left: 15px;
-		z-index: 10;
-		width: 32px;
-		height: 32px;
+		border-bottom-left-radius: 24px;
+		border-bottom-right-radius: 24px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	/* 品牌区 */
+	.brand {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin-top: -30px;
+	}
+	.brand-logo {
+		width: 64px;
+		height: 64px;
+		line-height: 64px;
+		text-align: center;
+		font-size: 36px;
+		background-color: rgba(255,255,255,0.22);
+		border-radius: 18px;
+	}
+	.brand-name {
+		font-size: 22px;
+		font-weight: 700;
+		color: #fff;
+		margin-top: 12px;
+		letter-spacing: 2px;
+	}
+	.brand-slogan {
+		font-size: 13px;
+		color: rgba(255,255,255,0.85);
+		margin-top: 6px;
+	}
+	/* 登录/注册 切换标签 */
+	.login-tabs {
+		display: flex;
+		flex-direction: row;
+		margin-bottom: 8px;
+	}
+	.login-tab {
+		font-size: 18px;
+		color: #9aa0a6;
+		font-weight: 600;
+		margin-right: 24px;
+		padding-bottom: 6px;
+		position: relative;
+	}
+	.login-tab-on {
+		color: #1a1a1a;
+	}
+	.login-tab-on::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: 22px;
+		height: 3px;
+		background-color: #43b876;
+		border-radius: 2px;
+	}
+	.login-back {
+		position: absolute;
+		top: 16px;
+		left: 16px;
+		z-index: 10;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		height: 32px;
+		padding: 0 14px 0 10px;
+		background-color: rgba(255,255,255,0.28);
+		border-radius: 16px;
+	}
+	.login-back-arrow {
+		color: #fff;
+		font-size: 22px;
+		line-height: 1;
+	}
+	.login-back-text {
+		color: #fff;
+		font-size: 13px;
+		margin-left: 2px;
 	}
 	/* 登录卡片，盖在背景上 */
 	.login {
 		margin-left: 20px;
 		margin-right: 20px;
-		margin-top: -90px;
+		margin-top: -40px;
 		background-color: #fff;
-		border-radius: 12px;
-		padding: 25px 20px 20px;
-		box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+		border-radius: 16px;
+		padding: 24px 20px 20px;
+		box-shadow: 0 8px 28px rgba(0,0,0,0.10);
 	}
+	/* #ifdef H5 */
+	@media screen and (min-width: 1024px) {
+		.login {
+			max-width: 400px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		.login-bg { border-radius: 0 0 24px 24px; }
+	}
+	/* #endif */
 	.title {
 		font-size: 24px;
 		font-weight: bold;

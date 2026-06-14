@@ -64,6 +64,30 @@ Vue.prototype.authJump = function(url){
 	});
 }
 
+// ===== PC 宽屏判断（全局 mixin，≥1024px 视为 PC 宽屏版） =====
+// #ifdef H5
+const PC_BREAKPOINT = 1024
+Vue.mixin({
+	data() {
+		return { isPC: typeof window !== 'undefined' && window.innerWidth >= PC_BREAKPOINT }
+	},
+	mounted() {
+		if (this.__pcResizeBound) return
+		this.__pcResizeBound = () => {
+			const pc = window.innerWidth >= PC_BREAKPOINT
+			if (pc !== this.isPC) this.isPC = pc
+		}
+		window.addEventListener('resize', this.__pcResizeBound)
+	},
+	beforeDestroy() {
+		if (this.__pcResizeBound) window.removeEventListener('resize', this.__pcResizeBound)
+	}
+})
+// #endif
+// #ifndef H5
+Vue.mixin({ data() { return { isPC: false } } })
+// #endif
+
 Vue.config.productionTip = false
 
 App.mpType = 'app'

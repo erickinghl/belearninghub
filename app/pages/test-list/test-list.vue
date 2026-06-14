@@ -1,5 +1,8 @@
 <template>
-	<view class="tl-page">
+	<view class="tl-page" :class="isPC ? 'tl-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="test"></pc-header>
+		<!-- #endif -->
 		<!-- 分类筛选 -->
 		<scroll-view scroll-x class="tl-cats" v-if="cats.length">
 			<view class="tl-cat" :class="curCat === 0 ? 'tl-cat-on' : ''" @click="selectCat(0)">全部</view>
@@ -136,6 +139,9 @@
 	/* #ifdef H5 */
 	.tl-page {
 		padding-top: 56px;
+	}
+	.tl-page-pc {
+		padding-top: 76px;   /* 让出 PC 顶部导航栏 */
 	}
 	/* #endif */
 	/* 分类筛选条 */

@@ -1,6 +1,9 @@
 <template>
-	<view>
-		
+	<view :class="isPC ? 'crs-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="course"></pc-header>
+		<!-- #endif -->
+
 		<!-- 已购的音/视频课：播放器；其余（含已购图文、未购任意）：封面图 -->
 		<f-audio v-if="detail.isbuy && detail.type == 'audio'" :poster="detail.cover" :src="detail.content" @onProgress="onAudioProgressUpdate"></f-audio>
 		<video v-else-if="detail.isbuy && detail.type == 'video'" :src="detail.content" controls style="width: 100%;height: 210px;" :poster="detail.cover" @timeupdate="onVideoTimeUpdate"></video>
@@ -306,6 +309,21 @@
 </script>
 
 <style>
+	/* #ifdef H5 */
+	/* PC：让出顶栏 + 内容居中限宽 + 封面/视频不被拉成超宽 */
+	.crs-page-pc {
+		padding-top: 60px;
+		max-width: 820px;
+		margin: 0 auto;
+		background-color: #fff;
+		min-height: 100vh;
+	}
+	.crs-page-pc > .position-relative > image,
+	.crs-page-pc > video {
+		height: 300px !important;
+	}
+	/* #endif */
+
 	.crs-type-badge {
 		position: absolute;
 		right: 12px;

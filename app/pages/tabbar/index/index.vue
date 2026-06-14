@@ -1,15 +1,20 @@
 <template>
-	<view>
+	<view :class="isPC ? 'pc-mode' : ''">
 		<!-- #ifdef APP-PLUS -->
 		<uni-status-bar bgColor="#ffffff"></uni-status-bar>
 		<!-- #endif -->
-		
+
+		<!-- PC 顶部导航栏 -->
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="index"></pc-header>
+		<!-- #endif -->
+
 		<index-skeleton v-if="loading"></index-skeleton>
-		
-		<view class="index-page animate__animated animate__fadeIn animate__fast" v-else>
+
+		<view class="index-page animate__animated animate__fadeIn animate__fast" :class="isPC ? 'index-page-pc' : ''" v-else>
 			<block v-for="(item,index) in templates" :key="index">
-				<!-- 搜索框：贴顶，无卡片 -->
-				<f-search-bar v-if="item.type == 'search'" :placeholder="item.placeholder"></f-search-bar>
+				<!-- 搜索框：贴顶，无卡片（PC 上搜索在顶栏，这里隐藏） -->
+				<f-search-bar v-if="item.type == 'search' && !isPC" :placeholder="item.placeholder"></f-search-bar>
 
 				<!-- 轮播图：卡片化，左右留白 + 圆角 -->
 				<view v-else-if="item.type == 'swiper'" class="idx-card idx-swiper-card">
@@ -38,7 +43,7 @@
 						<text class="font-md font-weight-bold">{{ item.title }}</text>
 						<text class="font-sm text-light-muted" v-if="item.showMore" @click="openCourseList">查看更多</text>
 					</view>
-					<view>
+					<view :class="isPC ? 'idx-course-grid' : ''">
 						<course-list :type="item.listType" v-for="(item2,index2) in item.data" :key="index2" :item="item2"></course-list>
 					</view>
 				</view>
@@ -124,6 +129,45 @@
 		min-height: 100%;
 		padding-bottom: 16px;
 	}
+
+	/* ===== PC 宽屏版 ===== */
+	/* #ifdef H5 */
+	.pc-mode {
+		background-color: #f2f3f5;
+		min-height: 100vh;
+	}
+	/* PC 下内容居中、留出顶栏高度，限制最大宽度 */
+	.index-page-pc {
+		max-width: 1100px;
+		margin: 0 auto;
+		padding-top: 76px !important;
+		padding-bottom: 40px;
+		background-color: transparent;
+	}
+	/* PC 下轮播图更高更大气 */
+	.index-page-pc .idx-swiper-card swiper {
+		height: 300px !important;
+	}
+	.index-page-pc .idx-swiper-card image {
+		height: 300px !important;
+	}
+	/* 课程多列网格 */
+	.idx-course-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+	}
+	/* 网格内的课程卡片：去掉自带左右 margin，填满格子，禁止撑破 */
+	.idx-course-grid :deep(.course) {
+		width: 100% !important;
+		min-width: 0 !important;
+		margin: 0 !important;
+		box-sizing: border-box;
+	}
+	.idx-course-grid :deep(.course-body) {
+		min-width: 0 !important;
+	}
+	/* #endif */
 	/* H5 固定导航栏(44px)会盖住搜索栏，补足顶部留白 */
 	/* #ifdef H5 */
 	.index-page {

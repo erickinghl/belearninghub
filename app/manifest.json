@@ -92,7 +92,7 @@
             }
         },
         "matchMedia" : {
-            "minWidth" : 768
+            "minWidth" : 2000
         }
     }
 }

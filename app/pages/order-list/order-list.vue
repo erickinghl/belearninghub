@@ -1,5 +1,8 @@
 <template>
-	<view class="ol-page">
+	<view class="ol-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<view class="ol-card" v-for="(item,index) in list" :key="index">
 			<!-- 顶部：订单号 + 状态 -->
 			<view class="ol-top">

@@ -80,6 +80,7 @@
     </div>
     <div class="wrap">
       <div class="tabs">
+        <button :class="{active: tab==='member'}" @click="goMembers()">会员管理</button>
         <button :class="{active: tab==='course'}" @click="tab='course'">课程管理</button>
         <button :class="{active: tab==='paper'}" @click="goPapers()">题库（刷题）</button>
         <button :class="{active: tab==='grade'}" @click="goGrade()">阅卷</button>
@@ -88,6 +89,152 @@
         <button :class="{active: tab==='banner'}" @click="tab='banner'">轮播图</button>
         <button :class="{active: tab==='navicon'}" @click="goNavIcons()">首页图标</button>
         <button :class="{active: tab==='correction'}" @click="goCorrections()">纠错<span v-if="correctionPending>0" class="badge">{{correctionPending}}</span></button>
+      </div>
+
+      <!-- 会员管理 -->
+      <div v-if="tab==='member'">
+        <!-- 总览数字卡 -->
+        <div class="card">
+          <h2>数据总览</h2>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div v-for="(s,si) in overviewCards" :key="si" style="flex:1;min-width:130px;background:#f7f8fa;border-radius:10px;padding:14px 16px;">
+              <div style="font-size:24px;font-weight:700;color:#333;">{{ s.val }}</div>
+              <div style="font-size:13px;color:#999;margin-top:4px;">{{ s.label }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 会员列表 -->
+        <div class="card">
+          <h2>会员列表
+            <span style="float:right;display:flex;gap:8px;align-items:center;">
+              <input v-model="memberKw" placeholder="搜索用户名/昵称/手机" @keyup.enter="loadMembers" style="width:200px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
+              <button class="btn btn-primary btn-sm" @click="loadMembers">搜索</button>
+            </span>
+          </h2>
+          <table>
+            <thead><tr><th>ID</th><th>头像</th><th>用户名</th><th>昵称</th><th>等级</th><th>余额</th><th>做题</th><th>已购</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="m in members" :key="m.id">
+                <td>{{ m.id }}</td>
+                <td><img :src="m.avatar || '/public/avatar-default.png'" style="width:34px;height:34px;border-radius:50%;object-fit:cover;background:#eee;"></td>
+                <td>{{ m.username }}</td>
+                <td>{{ m.nickname || '-' }}</td>
+                <td>
+                  <span v-if="isVip(m)" class="tag" style="background:#fff3e0;color:#e6730b;">{{ m.level }}</span>
+                  <span v-else style="font-size:12px;color:#999;">{{ m.level || '普通' }}</span>
+                </td>
+                <td>￥{{ Number(m.balance||0).toFixed(2) }}</td>
+                <td>{{ m.question_count }}</td>
+                <td>{{ m.order_count }}</td>
+                <td><span :class="m.status==1?'tag tag-on':'tag tag-off'">{{ m.status==1?'正常':'禁用' }}</span></td>
+                <td style="font-size:12px;color:#888;">{{ fmtTime(m.created_time) }}</td>
+                <td style="white-space:nowrap;">
+                  <button class="btn btn-primary btn-sm" @click="openMember(m)">详情</button>
+                  <button class="btn btn-plain btn-sm" @click="setMemberLevel(m)">等级</button>
+                  <button class="btn btn-plain btn-sm" @click="rechargeMember(m)">充值</button>
+                  <button class="btn btn-plain btn-sm" @click="resetMemberPwd(m)">改密</button>
+                  <button class="btn btn-sm" :class="m.status==1?'btn-danger':'btn-plain'" @click="toggleMember(m)">{{ m.status==1?'禁用':'启用' }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!members.length" class="empty">暂无会员</div>
+        </div>
+      </div>
+
+      <!-- 会员详情弹窗 -->
+      <div class="modal-mask" v-if="memberModal" @click.self="memberModal=false">
+        <div class="modal" style="max-width:760px;width:90vw;">
+          <h2 v-if="memberDetail">{{ memberDetail.user.nickname || memberDetail.user.username }} 的资料</h2>
+          <div v-if="memberDetail">
+            <!-- VIP / 余额条 -->
+            <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#fff7e6,#fff);border:1px solid #ffe2a8;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+              <div>等级：<b :style="{color: isVip(memberDetail.user) ? '#e6730b' : '#666'}">{{ memberDetail.user.level || '普通' }}</b></div>
+              <div v-if="memberDetail.user.vip_expire">VIP到期：<b>{{ fmtTime(memberDetail.user.vip_expire) }}</b></div>
+              <div>余额：<b style="color:#43b876;">￥{{ memberDetail.stat.balance }}</b></div>
+              <div style="color:#999;font-size:12px;">累计充值 ￥{{ memberDetail.stat.total_recharge }}</div>
+              <span style="margin-left:auto;display:flex;gap:8px;">
+                <button class="btn btn-plain btn-sm" @click="setMemberLevel(memberDetail.user)">设等级</button>
+                <button class="btn btn-primary btn-sm" @click="rechargeMember(memberDetail.user)">充值</button>
+              </span>
+            </div>
+            <!-- 统计数字 -->
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+              <div v-for="(s,si) in memberStatCards" :key="si" style="flex:1;min-width:90px;background:#f7f8fa;border-radius:8px;padding:10px 12px;text-align:center;">
+                <div style="font-size:18px;font-weight:700;color:#333;">{{ s.val }}</div>
+                <div style="font-size:12px;color:#999;margin-top:2px;">{{ s.label }}</div>
+              </div>
+            </div>
+            <!-- 考试记录 -->
+            <h3 style="font-size:14px;margin:12px 0 6px;">考试记录（{{ memberDetail.tests.length }}）</h3>
+            <table v-if="memberDetail.tests.length">
+              <thead><tr><th>试卷</th><th>得分</th><th>状态</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="t in memberDetail.tests" :key="t.id">
+                  <td>{{ t.testpaper_title }}</td>
+                  <td>{{ t.read_status ? t.score : '阅卷中' }}</td>
+                  <td>{{ t.answer_status ? '已完成' : '进行中' }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(t.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无考试记录</div>
+            <!-- 订单 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">订单（{{ memberDetail.orders.length }}）</h3>
+            <table v-if="memberDetail.orders.length">
+              <thead><tr><th>商品</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="o in memberDetail.orders" :key="o.id">
+                  <td>{{ o.goods_title || ('#'+o.goods_id) }}</td>
+                  <td>￥{{ o.price }}</td>
+                  <td><span :style="{color:o.status==1?'#43b876':'#999'}">{{ ['待支付','交易成功','已取消','已退款'][o.status]||'-' }}</span></td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(o.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无订单</div>
+            <!-- 充值记录 -->
+            <h3 style="font-size:14px;margin:14px 0 6px;">充值记录（{{ (memberDetail.recharges||[]).length }}）</h3>
+            <table v-if="memberDetail.recharges && memberDetail.recharges.length">
+              <thead><tr><th>金额</th><th>充值后余额</th><th>备注</th><th>时间</th></tr></thead>
+              <tbody>
+                <tr v-for="r in memberDetail.recharges" :key="r.id">
+                  <td :style="{color: Number(r.amount)>=0 ? '#43b876' : '#ff5b5b', fontWeight:600}">{{ Number(r.amount)>=0?'+':'' }}{{ r.amount }}</td>
+                  <td>￥{{ r.balance_after }}</td>
+                  <td>{{ r.remark }}</td>
+                  <td style="font-size:12px;color:#888;">{{ fmtTime(r.created_time) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else style="font-size:13px;color:#aaa;padding:6px 0;">暂无充值记录</div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-plain" @click="memberModal=false">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 设置会员等级弹窗 -->
+      <div class="modal-mask" v-if="levelModal" @click.self="levelModal=false">
+        <div class="modal" style="max-width:420px;">
+          <h2>设置会员等级</h2>
+          <p style="font-size:13px;color:#999;margin:-4px 0 14px;">会员：{{ levelForm.name }}</p>
+          <div class="form-row">
+            <label>会员等级</label>
+            <select v-model="levelForm.level">
+              <option v-for="lv in levelOptions" :key="lv" :value="lv">{{ lv }}</option>
+            </select>
+          </div>
+          <div class="form-row" v-if="levelForm.level !== '普通'">
+            <label>VIP 到期日期（留空 = 永久）</label>
+            <input type="date" v-model="levelForm.vip_expire">
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-plain" @click="levelModal=false">取消</button>
+            <button class="btn btn-primary" @click="saveMemberLevel">保存</button>
+          </div>
+        </div>
       </div>
 
       <!-- 课程管理 -->
@@ -172,7 +319,8 @@
               <a @click="curPaper=null" style="color:#5ccc84;cursor:pointer;">← 返回试卷列表</a>
               ｜ 「{{ curPaper.title }}」 题目管理
               <span style="float:right">
-                <button class="btn btn-plain btn-sm" @click="openImport()">批量导入</button>
+                <button class="btn btn-plain btn-sm" @click="openSmartImport()">✨ 智能导入</button>
+                <button class="btn btn-plain btn-sm" @click="openImport()">批量导入(JSON)</button>
                 <button class="btn btn-primary btn-sm" @click="openQuestion()">+ 添加题目</button>
               </span>
             </h2>
@@ -382,6 +530,20 @@
 
       <!-- 首页图标管理 -->
       <div v-if="tab==='navicon'">
+        <!-- 默认头像设置 -->
+        <div class="card">
+          <h2>默认头像</h2>
+          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">用户未上传头像时，全站显示这个默认头像。建议上传正方形图片，自动裁成圆形。</p>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <img :src="defaultAvatar || '/public/avatar-default.png'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #eee;background:#f2f3f5;">
+            <label class="btn btn-plain btn-sm" style="cursor:pointer;display:inline-block;">
+              {{ avatarUploading ? '上传中…' : '上传默认头像' }}
+              <input type="file" accept="image/*" style="display:none;" @change="uploadDefaultAvatar">
+            </label>
+            <button v-if="defaultAvatar" class="btn btn-plain btn-sm" @click="resetDefaultAvatar">恢复内置</button>
+          </div>
+        </div>
+
         <div class="card">
           <h2>首页宫格图标
             <button class="btn btn-primary btn-sm" style="float:right" @click="openNavIcon()">+ 新建图标</button>
@@ -793,6 +955,63 @@
       </div>
     </div>
 
+    <!-- 智能导入弹窗（仿学习通：左编辑 → 识别 → 右预览 → 加入试卷） -->
+    <div class="modal-mask" v-if="smartModal" @click.self="smartModal=false">
+      <div class="modal" style="max-width:1100px;width:92vw;">
+        <h2>✨ 智能导入题目 <span style="font-size:13px;color:#999;font-weight:normal;">粘贴题目文本 → 识别 → 预览 → 加入「{{ curPaper && curPaper.title }}」</span></h2>
+        <div style="display:flex;gap:16px;align-items:stretch;">
+          <!-- 左：编辑区 -->
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <b style="font-size:14px;">题目编辑</b>
+              <a @click="fillSmartSample" style="color:#5ccc84;cursor:pointer;font-size:12px;">填入格式示例</a>
+            </div>
+            <textarea v-model="smartText" placeholder="在此粘贴题目文本…&#10;&#10;支持：单选/多选/判断/填空/简答 及自定义题型（名词解释等）&#10;题型用【单选题】标注，答案用「答案：C」或题干括号（ABD）"
+              style="flex:1;min-height:420px;width:100%;font-size:13px;line-height:1.7;padding:12px;box-sizing:border-box;border:1px solid #e4e7ed;border-radius:8px;font-family:inherit;"></textarea>
+            <div style="font-size:12px;color:#aaa;margin-top:6px;line-height:1.6;">
+              格式：题号 <code>1.</code> + 题型 <code>【单选题】</code> + 题干；选项 <code>A.</code>；答案 <code>答案：C</code> / 多选 <code>答案：A，B，C</code> / 判断 <code>答案：对</code> / 填空 <code>答案：赋；比；兴</code>。难易度/知识点/课程目标会自动忽略。组合题（大括号包裹的阅读理解/完型等）暂不支持。
+            </div>
+          </div>
+
+          <!-- 中：识别按钮 -->
+          <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;">
+            <button class="btn btn-primary" @click="doRecognize" :disabled="smartParsing" style="border-radius:20px;padding:10px 22px;">{{ smartParsing ? '识别中…' : '识别 →' }}</button>
+          </div>
+
+          <!-- 右：预览区 -->
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <b style="font-size:14px;">题目预览 <span style="color:#5ccc84;">{{ smartParsed.length }}</span> 题</b>
+              <span v-if="smartErrors.length" style="font-size:12px;color:#e6730b;">{{ smartErrors.length }} 条提示</span>
+            </div>
+            <div style="flex:1;min-height:420px;max-height:60vh;overflow:auto;border:1px solid #e4e7ed;border-radius:8px;padding:12px;background:#fafbfc;">
+              <div v-if="!smartParsed.length && !smartErrors.length" style="color:#bbb;text-align:center;padding-top:160px;">点击「识别」后在此预览</div>
+              <!-- 提示 -->
+              <div v-for="(e,ei) in smartErrors" :key="'e'+ei" style="font-size:12px;color:#e6730b;background:#fff7e6;border-radius:6px;padding:6px 10px;margin-bottom:8px;">⚠ {{ e }}</div>
+              <!-- 题目卡片 -->
+              <div v-for="(q,qi) in smartParsed" :key="qi" style="background:#fff;border:1px solid #eee;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+                <div style="font-size:13px;">
+                  <span style="display:inline-block;background:#eef5ff;color:#3b82f6;border-radius:4px;padding:1px 6px;font-size:11px;margin-right:6px;">{{ smartTypeText(q) }}</span>
+                  <b>{{ qi+1 }}.</b> {{ q.title }}
+                </div>
+                <div v-if="q.options && q.options.length" style="margin:6px 0 0 8px;font-size:12px;color:#555;">
+                  <div v-for="(o,oi) in q.options" :key="oi" :style="{color: smartIsAnswer(q,oi)?'#43b876':'#555', fontWeight: smartIsAnswer(q,oi)?600:400}">
+                    {{ letters[oi] }}. {{ o }} <span v-if="smartIsAnswer(q,oi)">✓</span>
+                  </div>
+                </div>
+                <div style="font-size:12px;color:#43b876;margin-top:4px;">答案：{{ smartAnswerText(q) }}</div>
+                <div v-if="q.analysis" style="font-size:12px;color:#999;margin-top:2px;">解析：{{ q.analysis }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="smartModal=false">取消</button>
+          <button class="btn btn-primary" @click="doSmartImport" :disabled="!smartParsed.length">加入试卷（{{ smartParsed.length }} 题）</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 电子书编辑弹窗 -->
     <div class="modal-mask" v-if="bookModal" @click.self="bookModal=false">
       <div class="modal">
@@ -901,7 +1120,16 @@ createApp({
       token: localStorage.getItem('admin_token') || '',
       username: localStorage.getItem('admin_username') || '',
       loginForm: { username: 'adminuser', password: '123456' },
-      tab: 'course',
+      tab: localStorage.getItem('admin_tab') || 'course',
+      // 会员管理
+      members: [],
+      memberKw: '',
+      memberModal: false,
+      memberDetail: null,
+      overview: {},
+      levelModal: false,
+      levelForm: { id: 0, name: '', level: '普通', vip_expire: '' },
+      levelOptions: ['普通', 'VIP', 'SVIP'],
       courses: [],
       banners: [],
       courseModal: false,
@@ -926,9 +1154,17 @@ createApp({
       navIconModal: false,
       navIconForm: {},
       navIconUploading: false,
+      defaultAvatar: '',
+      avatarUploading: false,
       anaImgUploading: false,
       anaVideoUploading: false,
       importText: '',
+      // 智能导入
+      smartModal: false,
+      smartText: '',
+      smartParsed: [],
+      smartErrors: [],
+      smartParsing: false,
       // 电子书
       books: [],
       curBook: null,
@@ -954,9 +1190,129 @@ createApp({
       placeholder: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="45"%3E%3Crect width="80" height="45" fill="%23eee"/%3E%3C/svg%3E'
     };
   },
-  mounted() { if (this.token) { this.loadAll(); this.loadCorrectionCount(); } },
+  watch: {
+    // 记住当前所在的栏目，刷新后还停在这里
+    tab(v) { localStorage.setItem('admin_tab', v); }
+  },
+  mounted() {
+    if (this.token) {
+      this.loadAll();
+      this.loadCorrectionCount();
+      // 刷新后恢复到上次的栏目并加载其数据
+      this.restoreTab();
+    }
+  },
+  computed: {
+    overviewCards() {
+      const o = this.overview || {};
+      return [
+        { label: '会员总数', val: o.user_total || 0 },
+        { label: '今日新增', val: o.today_new || 0 },
+        { label: '已付订单', val: o.order_paid || 0 },
+        { label: '总收入(￥)', val: o.income || '0.00' },
+        { label: '累计做题', val: o.question_done || 0 },
+        { label: '考试次数', val: o.test_total || 0 },
+      ];
+    },
+    memberStatCards() {
+      const s = (this.memberDetail && this.memberDetail.stat) || {};
+      return [
+        { label: '做题', val: s.done_total || 0 },
+        { label: '答对', val: s.right_total || 0 },
+        { label: '正确率', val: (s.rate || 0) + '%' },
+        { label: '收藏题', val: s.fava_question || 0 },
+        { label: '考试', val: s.test_count || 0 },
+        { label: '已购', val: s.paid_count || 0 },
+        { label: '消费(￥)', val: s.total_pay || '0.00' },
+        { label: '笔记', val: s.note_count || 0 },
+        { label: '收藏', val: s.fava_count || 0 },
+      ];
+    },
+  },
   methods: {
     toast(m) { this.msg = m; setTimeout(() => this.msg = '', 2000); },
+    // 刷新后按当前 tab 加载对应数据（各栏目数据是惰性加载的）
+    restoreTab() {
+      const t = this.tab;
+      if (t === 'member') { this.loadOverview(); this.loadMembers(); }
+      else if (t === 'paper') { if (this.goPapers) this.goPapers(); }
+      else if (t === 'grade') { if (this.goGrade) this.goGrade(); }
+      else if (t === 'order') { if (this.goOrders) this.goOrders(); }
+      else if (t === 'book') { if (this.goBooks) this.goBooks(); }
+      else if (t === 'navicon') { if (this.goNavIcons) this.goNavIcons(); }
+      else if (t === 'correction') { if (this.goCorrections) this.goCorrections(); }
+      // course/banner 用 loadAll() 已加载，无需额外
+    },
+    // ===== 会员管理 =====
+    goMembers() { this.tab = 'member'; this.loadOverview(); this.loadMembers(); },
+    async loadOverview() {
+      const d = await this.req('/admin/member/overview');
+      if (d.msg === 'ok') this.overview = d.data || {};
+    },
+    async loadMembers() {
+      const q = this.memberKw ? ('?kw=' + encodeURIComponent(this.memberKw)) : '';
+      const d = await this.req('/admin/member/list' + q);
+      if (d.msg === 'ok') this.members = (d.data && d.data.rows) || [];
+    },
+    async openMember(m) {
+      const d = await this.req('/admin/member/detail?id=' + m.id);
+      if (d.msg === 'ok') { this.memberDetail = d.data; this.memberModal = true; }
+      else this.toast(typeof d.data === 'string' ? d.data : '加载失败');
+    },
+    async resetMemberPwd(m) {
+      const pwd = window.prompt('给「' + (m.nickname || m.username) + '」设置新密码（至少6位）：', '');
+      if (pwd === null) return;
+      if (!pwd || pwd.length < 6) return this.toast('密码至少6位');
+      const d = await this.reqJSON('/admin/member/reset_password', { id: m.id, password: pwd });
+      if (d.msg === 'ok') this.toast('密码已重置'); else this.toast(typeof d.data === 'string' ? d.data : '失败');
+    },
+    async toggleMember(m) {
+      const ns = m.status == 1 ? 0 : 1;
+      if (!confirm((ns === 0 ? '禁用' : '启用') + '会员「' + (m.nickname || m.username) + '」？')) return;
+      const d = await this.reqJSON('/admin/member/toggle_status', { id: m.id, status: ns });
+      if (d.msg === 'ok') { this.toast(d.data); this.loadMembers(); } else this.toast('操作失败');
+    },
+    // 判断是否 VIP（等级非普通 且 未过期）
+    isVip(m) {
+      if (!m || !m.level || m.level === '普通') return false;
+      if (!m.vip_expire) return true;
+      return new Date(m.vip_expire).getTime() > Date.now();
+    },
+    setMemberLevel(m) {
+      // 若是自定义等级不在选项里，临时加进选项
+      if (m.level && this.levelOptions.indexOf(m.level) === -1) this.levelOptions.push(m.level);
+      this.levelForm = {
+        id: m.id,
+        name: m.nickname || m.username,
+        level: m.level || '普通',
+        vip_expire: m.vip_expire ? this.fmtTime(m.vip_expire).slice(0, 10) : '',
+      };
+      this.levelModal = true;
+    },
+    async saveMemberLevel() {
+      const f = this.levelForm;
+      const vip_expire = f.level === '普通' ? '' : (f.vip_expire || '');
+      const d = await this.reqJSON('/admin/member/set_level', { id: f.id, level: f.level, vip_expire });
+      if (d.msg === 'ok') {
+        this.toast('已更新等级');
+        this.levelModal = false;
+        this.loadMembers();
+        if (this.memberModal && this.memberDetail) await this.openMember({ id: f.id });
+      } else this.toast(typeof d.data === 'string' ? d.data : '失败');
+    },
+    async rechargeMember(m) {
+      const amtStr = window.prompt('给「' + (m.nickname || m.username) + '」充值金额（正数=充值，负数=扣减，如 100 或 -30）：', '');
+      if (amtStr === null) return;
+      const amount = parseFloat(amtStr);
+      if (isNaN(amount) || amount === 0) return this.toast('请输入有效金额');
+      const remark = window.prompt('备注（可留空）：', amount > 0 ? '后台充值' : '后台扣减') || '';
+      const d = await this.reqJSON('/admin/member/recharge', { id: m.id, amount, remark });
+      if (d.msg === 'ok') {
+        this.toast('操作成功，当前余额 ￥' + d.data.balance);
+        this.loadMembers();
+        if (this.memberModal) await this.openMember(m);
+      } else this.toast(typeof d.data === 'string' ? d.data : '失败');
+    },
     async req(path, opts = {}) {
       opts.headers = Object.assign({ 'token': this.token }, opts.headers || {});
       const res = await fetch(API + path, opts);
@@ -1069,7 +1425,29 @@ createApp({
       else this.toast(typeof d.data === 'string' ? d.data : '删除失败');
     },
     // ===== 首页图标 =====
-    goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); },
+    goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); this.loadSettings(); },
+    async loadSettings() {
+      const d = await this.req('/admin/setting/list');
+      if (d.msg === 'ok') this.defaultAvatar = (d.data && d.data.default_avatar) || '';
+    },
+    async uploadDefaultAvatar(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      this.avatarUploading = true;
+      const fd = new FormData();
+      fd.append('file', file);
+      const d = await this.req('/admin/upload', { method: 'POST', body: fd });
+      if (d.msg === 'ok' && d.data && d.data.url) {
+        const s = await this.reqJSON('/admin/setting/save', { skey: 'default_avatar', svalue: d.data.url });
+        if (s.msg === 'ok') { this.defaultAvatar = d.data.url; this.toast('默认头像已更新'); }
+      } else this.toast(typeof d.data === 'string' ? d.data : '上传失败');
+      this.avatarUploading = false;
+      e.target.value = '';
+    },
+    async resetDefaultAvatar() {
+      const s = await this.reqJSON('/admin/setting/save', { skey: 'default_avatar', svalue: '' });
+      if (s.msg === 'ok') { this.defaultAvatar = ''; this.toast('已恢复内置默认头像'); }
+    },
     async loadNavIcons() {
       const d = await this.req('/admin/nav_icon/list');
       if (d.msg === 'ok') this.navIcons = d.data || [];
@@ -1269,6 +1647,81 @@ createApp({
       if (d.msg === 'ok') {
         this.toast('成功导入 ' + d.data.imported + ' 题' + (d.data.errors.length ? '，' + d.data.errors.length + ' 题失败' : ''));
         this.importModal = false;
+        await this.loadQuestions(); this.loadPapers();
+      } else this.toast(typeof d.data === 'string' ? d.data : '导入失败');
+    },
+    // ===== 智能导入 =====
+    openSmartImport() {
+      this.smartText = ''; this.smartParsed = []; this.smartErrors = [];
+      this.smartModal = true;
+    },
+    fillSmartSample() {
+      this.smartText =
+`1.【单选题】关于《花间集》说法错误的是（   ）
+A.作者是赵崇佐
+B.收录当时流行歌曲歌词
+C.针砭时弊
+D.内容是美女与爱情
+答案：C
+答案解析：花间集的解析说明
+知识点：知识点1；知识点2
+
+2.【多选题】以下哪些是 Vue 的生命周期钩子？
+A.created
+B.mounted
+C.rendered
+D.destroyed
+答案：A，B，D
+
+3.【判断题】HTTP 是无状态协议。
+答案：对
+
+4.【填空题】中国诗经的写作方式包括______、______、______。
+答案：赋；比；兴
+
+5.【简答题】简述什么是事件冒泡？
+答案：事件从最内层目标元素逐级向外层祖先元素传播触发的过程。
+
+6.【名词解释】风雅颂
+答案：《诗经》按音乐划分的三个类别。`;
+    },
+    async doRecognize() {
+      if (!this.smartText.trim()) return this.toast('请先粘贴题目文本');
+      this.smartParsing = true;
+      const d = await this.reqJSON('/admin/question/parse', { text: this.smartText });
+      this.smartParsing = false;
+      if (d.msg === 'ok') {
+        this.smartParsed = d.data.questions || [];
+        this.smartErrors = d.data.errors || [];
+        if (!this.smartParsed.length && !this.smartErrors.length) this.toast('没有识别到题目，请检查格式');
+      } else this.toast(typeof d.data === 'string' ? d.data : '识别失败');
+    },
+    smartTypeText(q) {
+      if (q.typeName) return q.typeName;
+      return { radio: '单选题', checkbox: '多选题', trueOrfalse: '判断题', completion: '填空题', answer: '简答题' }[q.type] || q.type;
+    },
+    smartIsAnswer(q, oi) {
+      if (q.type === 'radio') return q.answer === oi;
+      if (q.type === 'checkbox') return Array.isArray(q.answer) && q.answer.includes(oi);
+      return false;
+    },
+    smartAnswerText(q) {
+      if (q.type === 'radio') return this.letters[q.answer];
+      if (q.type === 'checkbox') return (q.answer || []).map(i => this.letters[i]).join('');
+      if (q.type === 'trueOrfalse') return q.answer == 1 ? '对' : '错';
+      if (q.type === 'completion') return (q.answer || []).join(' / ');
+      return q.answer;
+    },
+    async doSmartImport() {
+      if (!this.smartParsed.length) return this.toast('没有可导入的题目');
+      // 去掉预览用的 typeName 字段再提交
+      const questions = this.smartParsed.map(q => {
+        const { typeName, ...rest } = q; return rest;
+      });
+      const d = await this.reqJSON('/admin/question/import', { testpaper_id: this.curPaper.id, questions });
+      if (d.msg === 'ok') {
+        this.toast('成功导入 ' + d.data.imported + ' 题' + (d.data.errors.length ? '，' + d.data.errors.length + ' 题失败' : ''));
+        this.smartModal = false;
         await this.loadQuestions(); this.loadPapers();
       } else this.toast(typeof d.data === 'string' ? d.data : '导入失败');
     },

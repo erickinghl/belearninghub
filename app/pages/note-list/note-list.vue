@@ -1,5 +1,8 @@
 <template>
-	<view class="nl-page">
+	<view class="nl-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<view class="nl-card" v-for="item in list" :key="item.id">
 			<view class="nl-head" @click="openNote(item)">
 				<text class="nl-title text-ellipsis">{{ item.title }}</text>

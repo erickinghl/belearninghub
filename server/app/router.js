@@ -26,6 +26,8 @@ module.exports = app => {
 
   // 首页聚合数据（templates 数组）
   router.get('/mobile/index', controller.index.index);
+  // 全局配置（默认头像等，公开）
+  router.get('/mobile/config', controller.setting.publicConfig);
 
   // 课程
   router.get('/mobile/course/list', controller.course.list);
@@ -93,6 +95,15 @@ module.exports = app => {
   router.post('/mobile/note/destroy', controller.note.destroy);
 
   // ===== 管理后台接口（需登录鉴权 /admin/*） =====
+  // 会员管理 + 统计
+  router.get('/admin/member/list', controller.member.list);
+  router.get('/admin/member/detail', controller.member.detail);
+  router.post('/admin/member/reset_password', controller.member.resetPassword);
+  router.post('/admin/member/toggle_status', controller.member.toggleStatus);
+  router.post('/admin/member/set_level', controller.member.setLevel);
+  router.post('/admin/member/recharge', controller.member.recharge);
+  router.get('/admin/member/overview', controller.member.overview);
+
   // 题库：试卷
   router.get('/admin/testpaper/list', controller.testpaper.adminList);
   router.get('/admin/testpaper/read', controller.testpaper.adminRead);
@@ -102,6 +113,7 @@ module.exports = app => {
   router.post('/admin/question/save', controller.question.save);
   router.post('/admin/question/destroy', controller.question.destroy);
   router.post('/admin/question/import', controller.question.batchImport);
+  router.post('/admin/question/parse', controller.question.parse);   // 智能识别（仅解析预览）
   // 订单
   router.get('/admin/order/list', controller.order.adminList);
   router.post('/admin/order/status', controller.order.adminUpdateStatus);
@@ -134,6 +146,9 @@ module.exports = app => {
   router.get('/admin/category/list', controller.category.index);
   router.post('/admin/category/save', controller.category.save);
   router.post('/admin/category/destroy', controller.category.destroy);
+  // 全局设置（默认头像等）
+  router.get('/admin/setting/list', controller.setting.adminList);
+  router.post('/admin/setting/save', controller.setting.save);
   // 首页图标导航
   router.get('/admin/nav_icon/list', controller.navIcon.adminList);
   router.post('/admin/nav_icon/save', controller.navIcon.save);

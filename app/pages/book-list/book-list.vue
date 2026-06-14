@@ -1,6 +1,11 @@
 <template>
-	<view class="bkl-page">
-		<book-list v-for="(item,index) in list" :key="index" :item="item"></book-list>
+	<view class="bkl-page" :class="isPC ? 'bkl-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="book"></pc-header>
+		<!-- #endif -->
+		<view :class="isPC ? 'bkl-grid' : ''">
+			<book-list v-for="(item,index) in list" :key="index" :item="item"></book-list>
+		</view>
 
 		<view v-if="!loading && !list.length" class="bkl-empty">
 			<text class="bkl-empty-icon">📚</text>
@@ -77,6 +82,23 @@
 	/* #ifdef H5 */
 	.bkl-page{
 		padding-top: 56px;
+	}
+	.bkl-page-pc{
+		padding-top: 76px;   /* 让出 PC 顶部导航栏 */
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+	/* PC 下电子书两列网格 */
+	.bkl-grid{
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 16px;
+	}
+	.bkl-grid :deep(.bk-card){
+		width: 100% !important;
+		min-width: 0 !important;
+		margin: 0 !important;
+		box-sizing: border-box;
 	}
 	/* #endif */
 	.bkl-empty{

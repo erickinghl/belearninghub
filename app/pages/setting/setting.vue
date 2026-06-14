@@ -1,5 +1,8 @@
 <template>
-	<view class="set-page">
+	<view class="set-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<!-- 账号安全 -->
 		<view class="set-group-title">账号安全</view>
 		<view class="set-card">

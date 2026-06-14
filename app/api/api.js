@@ -124,6 +124,10 @@ export default {
 	practiceRemoveWrong(data){
 		return api.post('/mobile/practice/remove_wrong',data)
 	},
+	// 全局配置（默认头像等）
+	getConfig(){
+		return api.get('/mobile/config')
+	},
 	// 答案纠错
 	correctionSubmit(data){
 		return api.post('/mobile/correction/submit',data)

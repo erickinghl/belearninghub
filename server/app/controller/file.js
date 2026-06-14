@@ -3,51 +3,80 @@
 const Controller = require('egg').Controller;
 const fs = require('fs');
 const path = require('path');
-//故名思意 异步二进制 写入流
-const awaitWriteStream = require('await-stream-ready').write;
-//管道读入一个虫洞。
 const sendToWormhole = require('stream-wormhole');
 const dayjs = require('dayjs');
+const sharp = require('sharp');
+
+// 图片压缩参数
+const IMG_MAX_WIDTH = 1280;   // 超过这个宽度的图等比缩小
+const IMG_QUALITY = 80;       // jpeg/webp 压缩质量
+const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
 class FileController extends Controller {
     async upload() {
-        const stream = await this.ctx.getFileStream();
-        // 基础的目录
+        const { ctx, app } = this;
+        const stream = await ctx.getFileStream();
+
         const uploadBasePath = 'app/public/uploads';
-        // 生成文件名
-        const filename = `${Date.now()}${Number.parseInt(
-            Math.random() * 1000,
-        )}${path.extname(stream.filename).toLocaleLowerCase()}`;
-        // 生成文件夹 
+        const ext = path.extname(stream.filename).toLocaleLowerCase();
         const dirname = dayjs(Date.now()).format('YYYY/MM/DD');
-        function mkdirsSync(dirname) {
-            if (fs.existsSync(dirname)) {
-                return true;
-            } else {
-                if (mkdirsSync(path.dirname(dirname))) {
-                    fs.mkdirSync(dirname);
-                    return true;
-                }
-            }
-        }
-        mkdirsSync(path.join(uploadBasePath, dirname));
-        // 生成写入路径
-        const target = path.join(uploadBasePath, dirname, filename);
-        // 写入流
-        const writeStream = fs.createWriteStream(target);
+        const rand = Number.parseInt(Math.random() * 1000);
+
+        // 确保目录存在
+        const dirAbs = path.join(uploadBasePath, dirname);
+        fs.mkdirSync(dirAbs, { recursive: true });
+
+        const isImage = IMG_EXTS.includes(ext);
+        // gif 不压缩（保留动图）；其它图片走 sharp 压缩
+        const doCompress = isImage && ext !== '.gif';
+
+        // 把上传流读成 buffer
+        let buffer;
         try {
-            //异步把文件流 写入
-            await awaitWriteStream(stream.pipe(writeStream));
+            const chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            buffer = Buffer.concat(chunks);
         } catch (err) {
-            //如果出现错误，关闭管道
             await sendToWormhole(stream);
-            this.ctx.throw(500, err);
+            return ctx.throw(500, '文件读取失败');
         }
 
-        const { protocol } = this.ctx.request;
-        let url = path.join('/public/uploads', dirname, filename).replace(/\\|\//g, '/');
-        url = protocol + '://' + this.app.config.webUrl + url;
+        let filename, target;
+        try {
+            if (doCompress) {
+                // 统一压缩：超大图缩到 1280px 宽，质量 80。png 保持 png，其余转 jpeg。
+                const outExt = ext === '.png' ? '.png' : '.jpg';
+                filename = `${Date.now()}${rand}${outExt}`;
+                target = path.join(dirAbs, filename);
+                let img = sharp(buffer, { failOn: 'none' }).rotate(); // rotate() 按 EXIF 自动摆正
+                const meta = await img.metadata();
+                if (meta.width && meta.width > IMG_MAX_WIDTH) {
+                    img = img.resize({ width: IMG_MAX_WIDTH });
+                }
+                if (outExt === '.png') {
+                    img = img.png({ compressionLevel: 9, quality: IMG_QUALITY });
+                } else {
+                    img = img.jpeg({ quality: IMG_QUALITY, mozjpeg: true });
+                }
+                await img.toFile(target);
+            } else {
+                // 非图片（pdf/视频/office）或 gif：原样写盘
+                filename = `${Date.now()}${rand}${ext}`;
+                target = path.join(dirAbs, filename);
+                fs.writeFileSync(target, buffer);
+            }
+        } catch (err) {
+            // 压缩失败兜底：原样写盘，不让上传失败
+            filename = `${Date.now()}${rand}${ext}`;
+            target = path.join(dirAbs, filename);
+            try { fs.writeFileSync(target, buffer); } catch (e) { return ctx.throw(500, '文件保存失败'); }
+        }
 
-        this.ctx.apiSuccess({ url });
+        const { protocol } = ctx.request;
+        let url = path.join('/public/uploads', dirname, filename).replace(/\\|\//g, '/');
+        url = protocol + '://' + app.config.webUrl + url;
+
+        ctx.apiSuccess({ url });
     }
 }
 

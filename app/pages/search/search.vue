@@ -1,5 +1,8 @@
 <template>
-	<view class="se-page">
+	<view class="se-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<!-- #ifdef MP -->
 		<search-bar v-model="keyword" @confirm="handleSearchEvent()"></search-bar>
 		<!-- #endif -->

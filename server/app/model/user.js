@@ -64,6 +64,29 @@ module.exports = app => {
             defaultValue: '',
             comment: '个性签名',
         },
+        status: {
+            type: app.Sequelize.TINYINT,
+            allowNull: false,
+            defaultValue: 1,
+            comment: '1正常 0禁用',
+        },
+        level: {
+            type: app.Sequelize.STRING(20),
+            allowNull: false,
+            defaultValue: '普通',
+            comment: '会员等级',
+        },
+        vip_expire: {
+            type: DATE,
+            allowNull: true,
+            comment: 'VIP到期时间',
+        },
+        balance: {
+            type: app.Sequelize.DECIMAL(10, 2),
+            allowNull: false,
+            defaultValue: 0,
+            comment: '账户余额',
+        },
         created_time: DATE,
         updated_time: DATE,
 

@@ -24,7 +24,7 @@ module.exports = appInfo => {
   };
 
   // 改成你自己的！！！
-  config.webUrl = "127.0.0.1:7001";
+  config.webUrl = "172.16.0.2:7001";
 
   config.auth = {
     match: [

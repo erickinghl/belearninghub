@@ -1,5 +1,8 @@
 <template>
-	<view class="fv-page">
+	<view class="fv-page" :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		<view class="fv-item" v-for="(item,index) in list" :key="index">
 			<course-list type="one" :item="item.goods">
 				<view slot="desc" class="fv-desc text-ellipsis" v-if="item.goods.desc || item.goods.try">{{ item.goods.desc || stripHtml(item.goods.try) }}</view>

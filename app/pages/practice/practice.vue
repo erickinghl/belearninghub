@@ -1,12 +1,38 @@
 <template>
-	<view class="pr-page">
+	<view class="pr-page" :class="isPC ? 'pr-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="test"></pc-header>
+		<!-- #endif -->
 		<!-- 题号宫格 -->
 		<scroll-view scroll-y class="pr-grid-wrap" v-if="showGrid">
-			<view class="pr-grid" v-if="questions.length">
-				<view class="pr-cell" v-for="(q,i) in questions" :key="q.id"
-					:class="cellClass(q,i)" @click="gotoQuestion(i)">
-					{{ i + 1 }}
+			<view class="pr-card" v-if="questions.length">
+				<!-- 卡片头：标题 + 概览 -->
+				<view class="pr-card-head">
+					<text class="pr-card-title">📝 答题卡</text>
+					<text class="pr-card-sub">共 {{ questions.length }} 题，点击题号开始作答</text>
 				</view>
+				<!-- 概览统计 -->
+				<view class="pr-overview">
+					<view class="pr-ov-item"><text class="pr-ov-num pr-ov-r">{{ stat.right }}</text><text class="pr-ov-lbl">答对</text></view>
+					<view class="pr-ov-item"><text class="pr-ov-num pr-ov-w">{{ stat.wrong }}</text><text class="pr-ov-lbl">答错</text></view>
+					<view class="pr-ov-item"><text class="pr-ov-num pr-ov-u">{{ stat.undone }}</text><text class="pr-ov-lbl">未做</text></view>
+					<view class="pr-ov-item"><text class="pr-ov-num pr-ov-rate">{{ stat.rate }}%</text><text class="pr-ov-lbl">正确率</text></view>
+				</view>
+				<!-- 图例 -->
+				<view class="pr-legend">
+					<view class="pr-lg"><view class="pr-lg-dot pr-lg-right"></view><text class="pr-lg-txt">答对</text></view>
+					<view class="pr-lg"><view class="pr-lg-dot pr-lg-wrong"></view><text class="pr-lg-txt">答错</text></view>
+					<view class="pr-lg"><view class="pr-lg-dot pr-lg-undone"></view><text class="pr-lg-txt">未做</text></view>
+				</view>
+				<!-- 题号网格 -->
+				<view class="pr-grid">
+					<view class="pr-cell" v-for="(q,i) in questions" :key="q.id"
+						:class="cellClass(q,i)" @click="gotoQuestion(i)">
+						{{ i + 1 }}
+					</view>
+				</view>
+				<!-- 开始/继续作答 -->
+				<view class="pr-start-btn" @click="gotoQuestion(firstUndoneIndex)">{{ stat.done > 0 ? '继续作答' : '开始作答' }}</view>
 			</view>
 			<view v-else-if="loaded" class="pr-empty">
 				<text class="pr-empty-icon">{{ mode === 'fava' ? '⭐' : '📕' }}</text>
@@ -18,14 +44,32 @@
 		<!-- 答题区 -->
 		<view class="pr-body" v-if="!showGrid && cur">
 			<view class="pr-qhead">
-				<text class="pr-qtype">{{ typeName(cur.type) }}</text>
+				<text class="pr-qtype">{{ cur.type === 'group' ? groupTypeName(cur) : typeName(cur.type) }}</text>
 				<text class="pr-qno">第 {{ index + 1 }} / {{ questions.length }} 题</text>
 				<text class="pr-correct" @click="correct">纠错</text>
 			</view>
-			<view class="pr-title">{{ cur.title }}</view>
 
-			<!-- 选项 -->
-			<view class="pr-options">
+			<!-- ===== 组合题（材料 + 多个小题） ===== -->
+			<template v-if="cur.type === 'group'">
+				<view class="pr-material" v-if="groupPack(cur).title">{{ groupPack(cur).title }}</view>
+				<view class="pr-sub" v-for="(sub,si) in groupPack(cur).children" :key="si">
+					<view class="pr-sub-title">{{ si + 1 }}. {{ sub.title }}</view>
+					<view class="pr-opt" v-for="(o,oi) in subOptions(sub)" :key="oi"
+						:class="subOptClass(si, oi, sub)" @click="chooseSub(si, oi)">
+						<text class="pr-opt-badge">{{ letter(oi) }}</text>
+						<text class="pr-opt-text">{{ o }}</text>
+					</view>
+					<view v-if="answered" class="pr-sub-ana">
+						<text :class="groupResults[si] ? 'pr-ok' : 'pr-no'">{{ groupResults[si] ? '✓ 正确' : '✕ 错误' }}</text>
+						正确答案：{{ letter(sub.answer) }}<text v-if="sub.analysis">　解析：{{ sub.analysis }}</text>
+					</view>
+				</view>
+			</template>
+
+			<view class="pr-title" v-else>{{ cur.title }}</view>
+
+			<!-- 选项（非组合题） -->
+			<view class="pr-options" v-if="cur.type !== 'group'">
 				<!-- 单选 -->
 				<template v-if="cur.type === 'radio'">
 					<view class="pr-opt" v-for="(o,oi) in parseOptions(cur.options)" :key="oi"
@@ -64,10 +108,14 @@
 			<!-- 提交 / 判定结果 -->
 			<view v-if="!answered" class="pr-submit" @click="submit">提交答案</view>
 			<view v-else class="pr-result">
-				<view class="pr-verdict" :class="lastRight ? 'pr-ok' : 'pr-no'">
+				<!-- 组合题：显示做对几道 -->
+				<view v-if="cur.type === 'group'" class="pr-verdict" :class="groupRightCount === groupTotal ? 'pr-ok' : 'pr-no'">
+					本组 {{ groupTotal }} 小题，答对 {{ groupRightCount }} 题
+				</view>
+				<view v-else class="pr-verdict" :class="lastRight ? 'pr-ok' : 'pr-no'">
 					{{ cur.type === 'answer' ? '已记录（问答题请对照解析自评）' : (lastRight ? '✓ 回答正确' : '✕ 回答错误') }}
 				</view>
-				<view class="pr-analysis" v-if="cur.answer !== undefined && cur.answer !== null && cur.answer !== ''">
+				<view class="pr-analysis" v-if="cur.type !== 'group' && cur.answer !== undefined && cur.answer !== null && cur.answer !== ''">
 					<text class="pr-ana-label">正确答案：</text>
 					<text class="pr-ana-text">{{ showAnswer(cur) }}</text>
 				</view>
@@ -159,7 +207,7 @@
 				<scroll-view scroll-y class="dc-list">
 					<view v-if="!comments.length" class="dc-empty">还没有讨论，来抢沙发～</view>
 					<view class="dc-item" v-for="c in comments" :key="c.id">
-						<image class="dc-avatar" :src="c.avatar || '/static/noLogin.png'" mode="aspectFill"></image>
+						<image class="dc-avatar" :src="c.avatar || $store.state.defaultAvatar" mode="aspectFill"></image>
 						<view class="dc-body">
 							<view class="dc-row1">
 								<text class="dc-name">{{ c.username }}</text>
@@ -194,6 +242,8 @@
 				checkboxValue: [],
 				fillValue: '',
 				essayValue: '',
+				groupAnswers: [],   // 组合题：每个小题选的选项索引
+				groupResults: [],   // 组合题：每个小题对错
 				answered: false,
 				lastRight: false,
 				stat: { total: 0, done: 0, right: 0, wrong: 0, undone: 0, rate: 0 },
@@ -219,6 +269,17 @@
 			myId() {
 				const u = this.$store.state.user
 				return u ? u.id : 0
+			},
+			groupTotal() {
+				return this.cur && this.cur.type === 'group' ? this.groupPack(this.cur).children.length : 0
+			},
+			groupRightCount() {
+				return this.groupResults.filter(Boolean).length
+			},
+			// 第一道未做的题索引（没有则回到第 1 题）
+			firstUndoneIndex() {
+				const i = this.questions.findIndex(q => !q.done)
+				return i === -1 ? 0 : i
 			}
 		},
 		onLoad(e) {
@@ -267,9 +328,20 @@
 				this.checkboxValue = []
 				this.fillValue = ''
 				this.essayValue = ''
+				this.groupAnswers = []
+				this.groupResults = []
 				this.answered = !!q.done
 				this.lastRight = !!q.is_right
-				if (q.done && q.my_answer != null) {
+				if (q.type === 'group') {
+					const children = this.groupPack(q).children
+					this.groupAnswers = children.map(() => -1)
+					if (q.done && q.my_answer != null) {
+						let v = q.my_answer
+						try { v = JSON.parse(q.my_answer) } catch (e) { v = [] }
+						if (Array.isArray(v)) this.groupAnswers = children.map((c, i) => (v[i] !== undefined ? Number(v[i]) : -1))
+						this.groupResults = children.map((c, i) => this.groupAnswers[i] === c.answer)
+					}
+				} else if (q.done && q.my_answer != null) {
 					let v = q.my_answer
 					try { v = JSON.parse(q.my_answer) } catch (e) { /* 字符串答案 */ }
 					if (q.type === 'radio' || q.type === 'trueOrfalse') this.radioValue = Number(v)
@@ -279,6 +351,36 @@
 				}
 				// 加载该题的功能条状态（点赞/收藏/笔记/讨论数）
 				this.loadAct()
+			},
+			// ===== 组合题辅助 =====
+			groupPack(q) {
+				// options 字段是 {groupType,groupName,sharedOptions,children}
+				let p = q.options
+				if (typeof p === 'string') { try { p = JSON.parse(p) } catch (e) { p = {} } }
+				p = p || {}
+				return { title: q.title || '', groupName: p.groupName || '组合题', groupType: p.groupType, sharedOptions: p.sharedOptions || [], children: p.children || [] }
+			},
+			groupTypeName(q) {
+				return this.groupPack(q).groupName || '组合题'
+			},
+			subOptions(sub) {
+				// 小题自带选项优先，否则用共用选项
+				if (sub.options && sub.options.length) return sub.options
+				return this.groupPack(this.cur).sharedOptions || []
+			},
+			chooseSub(si, oi) {
+				if (this.answered) return
+				this.$set(this.groupAnswers, si, oi)
+			},
+			subOptClass(si, oi, sub) {
+				const chosen = this.groupAnswers[si] === oi
+				let c = []
+				if (!this.answered) { if (chosen) c.push('pr-opt-on') }
+				else {
+					if (oi === sub.answer) c.push('pr-opt-right')
+					else if (chosen) c.push('pr-opt-wrong')
+				}
+				return c.join(' ')
 			},
 			// ===== 题目功能条 =====
 			loadAct() {
@@ -395,6 +497,7 @@
 			},
 			currentAnswer() {
 				const q = this.cur
+				if (q.type === 'group') return this.groupAnswers.slice()
 				if (q.type === 'radio' || q.type === 'trueOrfalse') return this.radioValue
 				if (q.type === 'checkbox') return this.checkboxValue.slice().sort((a, b) => a - b)
 				if (q.type === 'completion') return [this.fillValue]
@@ -407,9 +510,30 @@
 				this.checkboxValue = []
 				this.fillValue = ''
 				this.essayValue = ''
+				if (this.cur.type === 'group') {
+					this.groupAnswers = this.groupPack(this.cur).children.map(() => -1)
+					this.groupResults = []
+				}
 			},
 			submit() {
 				const q = this.cur
+				// 组合题：本地逐小题判分
+				if (q.type === 'group') {
+					const children = this.groupPack(q).children
+					if (this.groupAnswers.some(a => a === -1)) return this.$toast('请完成所有小题')
+					this.groupResults = children.map((c, i) => this.groupAnswers[i] === c.answer)
+					const allRight = this.groupResults.every(Boolean)
+					uni.showLoading({ title: '提交中...', mask: true })
+					this.$api.practiceSubmit({ question_id: q.id, answer: this.groupAnswers, is_right: allRight ? 1 : 0 }).then(res => {
+						this.answered = true
+						this.lastRight = (res.is_right !== undefined) ? !!res.is_right : allRight
+						this.$set(this.questions[this.index], 'done', 1)
+						this.$set(this.questions[this.index], 'is_right', this.lastRight ? 1 : 0)
+						this.$set(this.questions[this.index], 'my_answer', JSON.stringify(this.groupAnswers))
+						this.loadStat()
+					}).finally(() => uni.hideLoading())
+					return
+				}
 				const ans = this.currentAnswer()
 				// 校验
 				if (q.type === 'radio' || q.type === 'trueOrfalse') {
@@ -564,16 +688,127 @@
 	.pr-page {
 		padding-top: 44px;
 	}
+	/* PC：让出顶栏 + 答题内容居中成一栏卡片，不再左右大片空白 */
+	.pr-page-pc {
+		padding-top: 60px;
+	}
+	.pr-page-pc .pr-grid-wrap {
+		max-width: 760px;
+		margin: 0 auto;
+		height: calc(100vh - 120px);
+	}
+	.pr-page-pc .pr-body {
+		max-width: 760px;
+		margin: 0 auto;
+		background-color: #fff;
+		border-radius: 14px;
+		box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+		padding: 24px 28px;
+		box-sizing: border-box;
+		margin-top: 16px;
+	}
+	/* PC 底部统计条也居中限宽 */
+	.pr-page-pc .pr-stat {
+		max-width: 760px;
+		left: 50% !important;
+		right: auto !important;
+		transform: translateX(-50%);
+		border-radius: 12px 12px 0 0;
+	}
 	/* #endif */
 
 	/* 题号宫格 */
 	.pr-grid-wrap {
 		height: calc(100vh - 90px);
 	}
-	.pr-grid {
+	/* 答题卡卡片 */
+	.pr-card {
+		background-color: #fff;
+		border-radius: 14px;
+		margin: 12px;
+		padding: 18px 16px 20px;
+		box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+	}
+	/* #ifdef H5 */
+	.pr-page-pc .pr-card {
+		max-width: 640px;
+		margin: 16px auto;
+	}
+	/* #endif */
+	.pr-card-head {
 		display: flex;
-		flex-wrap: wrap;
-		padding: 12px;
+		flex-direction: column;
+		margin-bottom: 14px;
+	}
+	.pr-card-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: #1a1a1a;
+	}
+	.pr-card-sub {
+		font-size: 13px;
+		color: #9aa0a6;
+		margin-top: 4px;
+	}
+	/* 概览统计 */
+	.pr-overview {
+		display: flex;
+		background-color: #f7f8fa;
+		border-radius: 10px;
+		padding: 14px 0;
+		margin-bottom: 14px;
+	}
+	.pr-ov-item {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.pr-ov-num {
+		font-size: 20px;
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.pr-ov-r { color: #43b876; }
+	.pr-ov-w { color: #ff6b6b; }
+	.pr-ov-u { color: #999; }
+	.pr-ov-rate { color: #ff9500; }
+	.pr-ov-lbl {
+		font-size: 12px;
+		color: #9aa0a6;
+		margin-top: 4px;
+	}
+	/* 图例 */
+	.pr-legend {
+		display: flex;
+		align-items: center;
+		margin-bottom: 8px;
+	}
+	.pr-lg {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		margin-right: 16px;
+	}
+	.pr-lg-txt {
+		font-size: 12px;
+		color: #888;
+	}
+	.pr-lg-dot {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		margin-right: 5px;
+	}
+	.pr-lg-right { background-color: #43b876; }
+	.pr-lg-wrong { background-color: #ff6b6b; }
+	.pr-lg-undone { background-color: #e6e9ed; }
+	/* 题号网格：每行 6 个，均匀 */
+	.pr-grid {
+		display: grid;
+		grid-template-columns: repeat(6, 1fr);
+		gap: 12px;
+		padding: 6px 0 4px;
 	}
 	.pr-cell {
 		width: 44px;
@@ -585,7 +820,19 @@
 		color: #666;
 		background-color: #f0f2f5;
 		border-radius: 50%;
-		margin: 8px;
+		justify-self: center;
+	}
+	/* 开始作答按钮 */
+	.pr-start-btn {
+		margin-top: 18px;
+		height: 46px;
+		line-height: 46px;
+		text-align: center;
+		font-size: 16px;
+		color: #fff;
+		background-color: #43b876;
+		border-radius: 24px;
+		box-shadow: 0 4px 12px rgba(67,184,118,0.3);
 	}
 	.pr-cell-cur {
 		border: 2px solid #43b876;
@@ -662,6 +909,35 @@
 		font-weight: 600;
 		line-height: 1.6;
 		margin-bottom: 16px;
+	}
+	/* 组合题：材料 + 小题 */
+	.pr-material {
+		font-size: 15px;
+		color: #333;
+		line-height: 1.8;
+		background-color: #f7f8fa;
+		border-radius: 10px;
+		padding: 14px 16px;
+		margin-bottom: 16px;
+		white-space: pre-wrap;
+	}
+	.pr-sub {
+		margin-bottom: 20px;
+		padding-bottom: 4px;
+		border-bottom: 1px dashed #eef0f2;
+	}
+	.pr-sub-title {
+		font-size: 15px;
+		color: #222;
+		font-weight: 600;
+		line-height: 1.6;
+		margin-bottom: 10px;
+	}
+	.pr-sub-ana {
+		font-size: 13px;
+		color: #888;
+		line-height: 1.6;
+		margin-top: 8px;
 	}
 	.pr-options {
 		display: flex;

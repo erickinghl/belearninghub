@@ -1,5 +1,8 @@
 <template>
-	<view class="ln-page">
+	<view class="ln-page" :class="isPC ? 'ln-page-pc' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC" active="learn"></pc-header>
+		<!-- #endif -->
 		<!-- 快捷入口 -->
 		<view class="ln-quick">
 			<view class="ln-quick-item" @click="authJump('/pages/practice/practice?mode=wrong&title=我的错题')">
@@ -139,6 +142,9 @@
 	/* #ifdef H5 */
 	.ln-page{
 		padding-top: 44px;
+	}
+	.ln-page-pc{
+		padding-top: 60px;   /* 让出 PC 顶部导航栏，无系统标题栏 */
 	}
 	/* #endif */
 	.ln-quick{

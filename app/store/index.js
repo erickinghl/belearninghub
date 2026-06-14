@@ -4,7 +4,17 @@ Vue.use(Vuex)
 export default new Vuex.Store({
 	state:{
 		user:null,
-		token:null
+		token:null,
+		// 全局默认头像（后台可配置），App 启动时从 /mobile/config 拉取
+		defaultAvatar:'/static/avatar-default.png'
+	},
+	mutations:{
+		setDefaultAvatar(state, url){
+			if(url){
+				state.defaultAvatar = url
+				uni.setStorageSync('defaultAvatar', url)
+			}
+		}
 	},
 	actions:{
 		// 初始化
@@ -14,6 +24,8 @@ export default new Vuex.Store({
 				state.user = JSON.parse(user)
 				state.token = state.user.token
 			}
+			let da = uni.getStorageSync('defaultAvatar')
+			if(da) state.defaultAvatar = da
 		},
 		
 		login({ state },user){

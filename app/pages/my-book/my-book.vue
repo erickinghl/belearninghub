@@ -1,5 +1,8 @@
 <template>
-	<view>
+	<view :class="isPC ? 'pc-pad' : ''">
+		<!-- #ifdef H5 -->
+		<pc-header v-if="isPC"></pc-header>
+		<!-- #endif -->
 		
 		<view v-for="(item,index) in list" :key="index">
 			<book-list :item="item">
