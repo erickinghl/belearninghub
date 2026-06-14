@@ -21,7 +21,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '54f02889-6228-11f1-8cd5-743af4016792:1-411';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '54f02889-6228-11f1-8cd5-743af4016792:1-420';
 
 --
 -- Table structure for table `SequelizeMeta`
@@ -579,7 +579,7 @@ CREATE TABLE `sys_setting` (
   `updated_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `skey` (`skey`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -588,7 +588,7 @@ CREATE TABLE `sys_setting` (
 
 LOCK TABLES `sys_setting` WRITE;
 /*!40000 ALTER TABLE `sys_setting` DISABLE KEYS */;
-INSERT INTO `sys_setting` VALUES (1,'default_avatar','','2026-06-13 05:03:46','2026-06-13 20:32:41');
+INSERT INTO `sys_setting` VALUES (1,'default_avatar','','2026-06-13 05:03:46','2026-06-14 11:24:10'),(2,'video_max_mb','50','2026-06-13 19:52:22','2026-06-14 10:57:18');
 /*!40000 ALTER TABLE `sys_setting` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -841,4 +841,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-13 19:10:19
+-- Dump completed on 2026-06-13 20:34:32

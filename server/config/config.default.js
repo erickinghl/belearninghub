@@ -110,7 +110,8 @@ module.exports = appInfo => {
   }
 
   config.multipart = {
-    fileSize: '50mb',
+    // 框架层硬上限放宽到 500mb，真正的视频大小限制由后台 sys_setting.video_max_mb 控制（见 file.js）
+    fileSize: '500mb',
     mode: 'stream',
     fileExtensions: [
         '.jpg', '.JPG', '.png', '.PNG', '.gif', '.GIF', '.jpeg', '.JPEG', '.webp', '.WEBP', // 图片

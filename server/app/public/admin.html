@@ -533,14 +533,39 @@
         <!-- 默认头像设置 -->
         <div class="card">
           <h2>默认头像</h2>
-          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">用户未上传头像时，全站显示这个默认头像。建议上传正方形图片，自动裁成圆形。</p>
-          <div style="display:flex;align-items:center;gap:16px;">
-            <img :src="defaultAvatar || '/public/avatar-default.png'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #eee;background:#f2f3f5;">
+          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">用户未上传头像时，全站显示这个默认头像。可从下面内置款式中选一个，或上传自己的图片（自动压缩裁成圆形）。</p>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+            <span style="font-size:13px;color:#666;">当前：</span>
+            <img :src="defaultAvatar || '/public/avatar-default.png'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #43b876;background:#f2f3f5;">
+          </div>
+          <!-- 内置头像可选 -->
+          <div style="margin-bottom:12px;">
+            <div style="font-size:13px;color:#666;margin-bottom:8px;">内置款式（点击选用）：</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <img v-for="p in presetAvatars" :key="p"
+                   :src="p" @click="pickPresetAvatar(p)"
+                   :style="{width:'54px',height:'54px',borderRadius:'50%',cursor:'pointer',objectFit:'cover',border: defaultAvatar===p ? '2px solid #43b876' : '2px solid #eee'}">
+            </div>
+          </div>
+          <!-- 上传自己的 -->
+          <div style="display:flex;align-items:center;gap:12px;">
             <label class="btn btn-plain btn-sm" style="cursor:pointer;display:inline-block;">
-              {{ avatarUploading ? '上传中…' : '上传默认头像' }}
+              {{ avatarUploading ? '上传中…' : '上传自己的图片' }}
               <input type="file" accept="image/*" style="display:none;" @change="uploadDefaultAvatar">
             </label>
-            <button v-if="defaultAvatar" class="btn btn-plain btn-sm" @click="resetDefaultAvatar">恢复内置</button>
+            <button class="btn btn-plain btn-sm" @click="resetDefaultAvatar">恢复系统默认</button>
+          </div>
+        </div>
+
+        <!-- 视频上传大小限制 -->
+        <div class="card">
+          <h2>视频上传限制</h2>
+          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">图片上传会自动压缩。视频不压缩，但超过这个大小会被拒绝上传（防止超大文件拖慢服务器）。</p>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:14px;">单个视频最大</span>
+            <input v-model.number="videoMaxMb" type="number" min="1" style="width:90px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
+            <span style="font-size:14px;">MB</span>
+            <button class="btn btn-primary btn-sm" @click="saveVideoMax">保存</button>
           </div>
         </div>
 
@@ -1156,6 +1181,8 @@ createApp({
       navIconUploading: false,
       defaultAvatar: '',
       avatarUploading: false,
+      presetAvatars: ['/public/avatars/avatar-1.png', '/public/avatars/avatar-2.png', '/public/avatars/avatar-3.png', '/public/avatars/avatar-4.png'],
+      videoMaxMb: 50,
       anaImgUploading: false,
       anaVideoUploading: false,
       importText: '',
@@ -1428,7 +1455,23 @@ createApp({
     goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); this.loadSettings(); },
     async loadSettings() {
       const d = await this.req('/admin/setting/list');
-      if (d.msg === 'ok') this.defaultAvatar = (d.data && d.data.default_avatar) || '';
+      if (d.msg === 'ok') {
+        this.defaultAvatar = (d.data && d.data.default_avatar) || '';
+        if (d.data && d.data.video_max_mb) this.videoMaxMb = parseFloat(d.data.video_max_mb) || 50;
+      }
+    },
+    // 选用内置头像
+    async pickPresetAvatar(url) {
+      const s = await this.reqJSON('/admin/setting/save', { skey: 'default_avatar', svalue: url });
+      if (s.msg === 'ok') { this.defaultAvatar = url; this.toast('默认头像已更新'); }
+    },
+    // 保存视频大小限制
+    async saveVideoMax() {
+      const mb = parseFloat(this.videoMaxMb);
+      if (isNaN(mb) || mb < 1) return this.toast('请输入有效的 MB 数（≥1）');
+      const s = await this.reqJSON('/admin/setting/save', { skey: 'video_max_mb', svalue: String(mb) });
+      if (s.msg === 'ok') this.toast('视频上限已设为 ' + mb + 'MB');
+      else this.toast('保存失败');
     },
     async uploadDefaultAvatar(e) {
       const file = e.target.files[0];

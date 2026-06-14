@@ -11,6 +11,8 @@ const sharp = require('sharp');
 const IMG_MAX_WIDTH = 1280;   // 超过这个宽度的图等比缩小
 const IMG_QUALITY = 80;       // jpeg/webp 压缩质量
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.m4v'];
+const DEFAULT_VIDEO_MAX_MB = 50;   // 后台没设时的默认视频上限
 
 class FileController extends Controller {
     async upload() {
@@ -39,6 +41,19 @@ class FileController extends Controller {
         } catch (err) {
             await sendToWormhole(stream);
             return ctx.throw(500, '文件读取失败');
+        }
+
+        // 视频：检查大小是否超过后台设置的上限（sys_setting.video_max_mb）
+        if (VIDEO_EXTS.includes(ext)) {
+            let maxMb = DEFAULT_VIDEO_MAX_MB;
+            try {
+                const row = await app.model.SysSetting.findOne({ where: { skey: 'video_max_mb' } });
+                if (row && row.svalue && !isNaN(parseFloat(row.svalue))) maxMb = parseFloat(row.svalue);
+            } catch (e) { /* 取不到就用默认值 */ }
+            const sizeMb = buffer.length / 1024 / 1024;
+            if (sizeMb > maxMb) {
+                return ctx.throw(400, `视频大小 ${sizeMb.toFixed(1)}MB 超过上限 ${maxMb}MB，请压缩后再上传`);
+            }
         }
 
         let filename, target;

@@ -26,3 +26,8 @@ app/.hbuilderx/
 .idea/
 .vscode/
 *.rar
+
+# 开发期临时截图/广告文件（rsync 可能带入，忽略）
+app/shot_*.png
+app/preview.png
+app/static/更多相关资料.html
