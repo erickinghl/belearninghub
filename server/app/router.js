@@ -155,6 +155,10 @@ module.exports = app => {
   router.get('/admin/nav_icon/list', controller.navIcon.adminList);
   router.post('/admin/nav_icon/save', controller.navIcon.save);
   router.post('/admin/nav_icon/destroy', controller.navIcon.destroy);
+  // 首页内容板块
+  router.get('/admin/home_section/list', controller.homeSection.adminList);
+  router.post('/admin/home_section/save', controller.homeSection.save);
+  router.post('/admin/home_section/destroy', controller.homeSection.destroy);
   // 上传（后台用，复用 file.upload）
   router.post('/admin/upload', controller.file.upload);
 };

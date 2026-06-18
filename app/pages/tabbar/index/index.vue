@@ -37,13 +37,25 @@
 					<active-list :type="item.listType"></active-list>
 				</view>
 
-				<!-- 课程列表：标题在透明背景上，每个课程项是独立卡片 -->
+				<!-- 内容板块：按 dataType 渲染（课程/专栏=course-list，图书=book-list，题库=简单卡） -->
 				<view v-else-if="item.type == 'list'" class="idx-list-section">
 					<view class="flex align-center justify-between idx-section-head">
 						<text class="font-md font-weight-bold">{{ item.title }}</text>
-						<text class="font-sm text-light-muted" v-if="item.showMore" @click="openCourseList">查看更多</text>
+						<text class="font-sm text-light-muted" v-if="item.showMore" @click="openSectionMore(item)">查看更多</text>
 					</view>
-					<view :class="isPC ? 'idx-course-grid' : ''">
+					<!-- 图书 -->
+					<view v-if="item.dataType == 'book'" :class="isPC ? 'idx-course-grid' : ''">
+						<book-list v-for="(b,bi) in item.data" :key="bi" :item="b"></book-list>
+					</view>
+					<!-- 题库 -->
+					<view v-else-if="item.dataType == 'testpaper'">
+						<view class="idx-tp-card" v-for="(tp,ti) in item.data" :key="ti" @click="openTestpaper(tp)">
+							<text class="idx-tp-title">📝 {{ tp.title }}</text>
+							<text class="idx-tp-meta">{{ tp.question_count || 0 }} 题 · {{ tp.is_test==1 ? '考试' : '练习' }}</text>
+						</view>
+					</view>
+					<!-- 课程 / 专栏 -->
+					<view v-else :class="isPC ? 'idx-course-grid' : ''">
 						<course-list :type="item.listType" v-for="(item2,index2) in item.data" :key="index2" :item="item2"></course-list>
 					</view>
 				</view>
@@ -122,6 +134,17 @@
 				uni.navigateTo({
 					url: '../../list/list?module=course',
 				});
+			},
+			// 板块"查看更多"：按类型跳对应列表页
+			openSectionMore(item){
+				const t = item.dataType
+				if(t == 'book') uni.navigateTo({ url: '/pages/book-list/book-list' })
+				else if(t == 'testpaper') uni.navigateTo({ url: '/pages/test-list/test-list' })
+				else if(t == 'column') uni.navigateTo({ url: '/pages/list/list?module=column' })
+				else uni.navigateTo({ url: '/pages/list/list?module=course' })
+			},
+			openTestpaper(tp){
+				uni.navigateTo({ url: '/pages/test-list/test-list' })
 			}
 		}
 	}
@@ -208,4 +231,27 @@
 	.idx-section-head {
 		padding: 14px 16px 8px 16px;
 	}
+	/* 题库板块卡片 */
+	.idx-tp-card {
+		display: flex;
+		flex-direction: column;
+		background-color: #fff;
+		border-radius: 12px;
+		margin: 0 12px 10px;
+		padding: 14px 16px;
+		box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+	}
+	.idx-tp-title {
+		font-size: 15px;
+		color: #222;
+		font-weight: 600;
+	}
+	.idx-tp-meta {
+		font-size: 12px;
+		color: #9aa0a6;
+		margin-top: 6px;
+	}
+	/* #ifdef H5 */
+	.index-page-pc .idx-tp-card { margin: 0 0 12px; }
+	/* #endif */
 </style>

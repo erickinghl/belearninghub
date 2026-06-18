@@ -691,6 +691,17 @@
             <button class="btn btn-plain btn-sm" @click="footerLinks.push({name:'',url:''})">+ 添加链接</button>
           </div>
 
+          <div class="form-row">
+            <label>社交平台图标（页脚顶部一排）</label>
+            <div v-for="(s,i) in footerSocials" :key="i" style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+              <input v-model="s.name" placeholder="名称(如 抖音)" style="flex:1;">
+              <input v-model="s.icon" placeholder="图标(emoji 如 🎵)" style="width:130px;">
+              <input v-model="s.url" placeholder="链接(https://..，可留空)" style="flex:2;">
+              <button class="btn btn-danger btn-sm" @click="footerSocials.splice(i,1)">×</button>
+            </div>
+            <button class="btn btn-plain btn-sm" @click="footerSocials.push({name:'',icon:'',url:''})">+ 添加平台</button>
+          </div>
+
           <div class="row2">
             <div class="form-row"><label>联系电话</label><input v-model="site.contact_phone" placeholder="400-000-0000"></div>
             <div class="form-row"><label>联系邮箱</label><input v-model="site.contact_email" placeholder="support@xxx.com"></div>
@@ -730,6 +741,67 @@
             </tbody>
           </table>
           <div v-if="!navIcons.length" class="empty">暂无图标，点击右上角新建</div>
+        </div>
+
+        <!-- 首页内容板块 -->
+        <div class="card">
+          <h2>首页内容板块
+            <button class="btn btn-primary btn-sm" style="float:right" @click="openSection()">+ 新建板块</button>
+          </h2>
+          <p style="font-size:12px;color:#999;margin:-6px 0 12px;">首页"图标"下方的内容板块（如 最新课程/热门图书/推荐题库）。排序越大越靠前；隐藏的不显示。内容按类型自动拉取最新的几条。</p>
+          <table>
+            <thead><tr><th>标题</th><th>类型</th><th>条数</th><th>查看更多</th><th>排序</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="s in homeSections" :key="s.id">
+                <td>{{ s.title }}</td>
+                <td>{{ sectionTypeText(s.source_type) }}</td>
+                <td>{{ s.limit_num }}</td>
+                <td>{{ s.show_more==1 ? '是' : '否' }}</td>
+                <td>{{ s.sort }}</td>
+                <td><span :class="s.status==1?'tag tag-on':'tag tag-off'">{{ s.status==1?'显示':'隐藏' }}</span></td>
+                <td>
+                  <button class="btn btn-plain btn-sm" @click="openSection(s)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click="delSection(s)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!homeSections.length" class="empty">暂无板块，点击右上角新建</div>
+        </div>
+      </div>
+
+      <!-- 首页板块编辑弹窗 -->
+      <div class="modal-mask" v-if="sectionModal" @click.self="sectionModal=false">
+        <div class="modal" style="max-width:420px;">
+          <h2>{{ sectionForm.id ? '编辑板块' : '新建板块' }}</h2>
+          <div class="form-row"><label>板块标题</label><input v-model="sectionForm.title" placeholder="如 最新课程 / 热门图书"></div>
+          <div class="form-row">
+            <label>内容类型</label>
+            <select v-model="sectionForm.source_type">
+              <option value="course">课程</option>
+              <option value="book">图书</option>
+              <option value="testpaper">题库</option>
+              <option value="column">专栏</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="form-row"><label>显示条数</label><input v-model="sectionForm.limit_num" type="number" min="1" placeholder="6"></div>
+            <div class="form-row"><label>排序(大在前)</label><input v-model="sectionForm.sort" type="number" placeholder="0"></div>
+          </div>
+          <div class="row2">
+            <div class="form-row">
+              <label>显示"查看更多"</label>
+              <select v-model="sectionForm.show_more"><option :value="1">显示</option><option :value="0">不显示</option></select>
+            </div>
+            <div class="form-row">
+              <label>状态</label>
+              <select v-model="sectionForm.status"><option :value="1">显示</option><option :value="0">隐藏</option></select>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-plain" @click="sectionModal=false">取消</button>
+            <button class="btn btn-primary" @click="saveSection">保存</button>
+          </div>
         </div>
       </div>
 
@@ -1311,6 +1383,9 @@ createApp({
       categoryForm: {},
       // 首页图标
       navIcons: [],
+      homeSections: [],
+      sectionModal: false,
+      sectionForm: {},
       navIconModal: false,
       navIconForm: {},
       navIconUploading: false,
@@ -1320,6 +1395,7 @@ createApp({
       videoMaxMb: 50,
       site: { site_name: '', site_logo: '', site_desc: '', contact_phone: '', contact_email: '', contact_address: '', copyright: '', icp: '' },
       footerLinks: [],
+      footerSocials: [],
       logoUploading: false,
       anaImgUploading: false,
       anaVideoUploading: false,
@@ -1594,7 +1670,32 @@ createApp({
       else this.toast(typeof d.data === 'string' ? d.data : '删除失败');
     },
     // ===== 首页图标 =====
-    goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); this.loadSettings(); },
+    goNavIcons() { this.tab = 'navicon'; this.loadNavIcons(); this.loadSettings(); this.loadHomeSections(); },
+    // ===== 首页内容板块 =====
+    async loadHomeSections() {
+      const d = await this.req('/admin/home_section/list');
+      if (d.msg === 'ok') this.homeSections = d.data || [];
+    },
+    sectionTypeText(t) {
+      return { course: '课程', book: '图书', testpaper: '题库', column: '专栏' }[t] || t;
+    },
+    openSection(s) {
+      this.sectionForm = s
+        ? { id: s.id, title: s.title, source_type: s.source_type, limit_num: s.limit_num, show_more: s.show_more, sort: s.sort, status: s.status }
+        : { title: '', source_type: 'course', limit_num: 6, show_more: 1, sort: 0, status: 1 };
+      this.sectionModal = true;
+    },
+    async saveSection() {
+      if (!this.sectionForm.title) return this.toast('请填写板块标题');
+      const d = await this.reqJSON('/admin/home_section/save', this.sectionForm);
+      if (d.msg === 'ok') { this.toast('保存成功'); this.sectionModal = false; this.loadHomeSections(); }
+      else this.toast(typeof d.data === 'string' ? d.data : '保存失败');
+    },
+    async delSection(s) {
+      if (!confirm('确定删除板块「' + s.title + '」？')) return;
+      const d = await this.reqJSON('/admin/home_section/destroy', { id: s.id });
+      if (d.msg === 'ok') { this.toast('已删除'); this.loadHomeSections(); }
+    },
     async loadSettings() {
       const d = await this.req('/admin/setting/list');
       if (d.msg === 'ok' && d.data) {
@@ -1608,6 +1709,7 @@ createApp({
           contact_address: x.contact_address || '', copyright: x.copyright || '', icp: x.icp || '',
         };
         try { this.footerLinks = JSON.parse(x.footer_links || '[]'); } catch (e) { this.footerLinks = []; }
+        try { this.footerSocials = JSON.parse(x.footer_socials || '[]'); } catch (e) { this.footerSocials = []; }
       }
     },
     async uploadSiteLogo(e) {
@@ -1624,6 +1726,7 @@ createApp({
       // 逐项保存（含 footer_links 转 JSON 字符串）
       const items = Object.assign({}, this.site);
       items.footer_links = JSON.stringify(this.footerLinks.filter(l => l.name));
+      items.footer_socials = JSON.stringify(this.footerSocials.filter(s => s.name));
       let ok = true;
       for (const k of Object.keys(items)) {
         const s = await this.reqJSON('/admin/setting/save', { skey: k, svalue: items[k] });

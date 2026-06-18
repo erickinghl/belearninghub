@@ -25,9 +25,11 @@ class SettingController extends Controller {
             const { protocol } = ctx.request;
             defaultAvatar = protocol + '://' + app.config.webUrl + '/public/avatar-default.png';
         }
-        // footer_links 是 JSON 字符串，解析成数组
+        // footer_links / footer_socials 是 JSON 字符串，解析成数组
         let footerLinks = [];
         try { footerLinks = JSON.parse(m.footer_links || '[]'); } catch (e) { footerLinks = []; }
+        let footerSocials = [];
+        try { footerSocials = JSON.parse(m.footer_socials || '[]'); } catch (e) { footerSocials = []; }
 
         ctx.apiSuccess({
             default_avatar: defaultAvatar,
@@ -35,6 +37,7 @@ class SettingController extends Controller {
             site_logo: m.site_logo || '',
             site_desc: m.site_desc || '',
             footer_links: footerLinks,
+            footer_socials: footerSocials,
             contact_phone: m.contact_phone || '',
             contact_email: m.contact_email || '',
             contact_address: m.contact_address || '',

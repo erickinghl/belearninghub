@@ -17,13 +17,6 @@ class IndexController extends Controller {
             url: b.link || ''
         })) : [];
 
-        // 2. 最新课程列表（取上架课程）
-        let courses = await app.model.Course.findAll({
-            where: { status: 1 },
-            order: [['sort', 'DESC'], ['id', 'DESC']],
-            limit: 10
-        });
-        courses = JSON.parse(JSON.stringify(courses));
 
         // 3. 固定图标导航（教育方向：刷题/电子书/课程/专栏 + 我的）
         // 图标用内联 SVG data-uri，不依赖外部 CDN（原 aliyun 图床已失效）
@@ -69,13 +62,38 @@ class IndexController extends Controller {
             templates.push({ type: 'swiper', data: swiperData });
         }
         templates.push({ type: 'icons', data: icons });
-        templates.push({
-            type: 'list',
-            title: '最新课程',
-            listType: 'one',
-            showMore: true,
-            data: courses
+
+        // 内容板块：从 home_section 表读（后台可配，按类型自动拉数据）
+        const sections = await app.model.HomeSection.findAll({
+            where: { status: 1 },
+            order: [['sort', 'DESC'], ['id', 'ASC']]
         });
+        for (const sec of sections) {
+            const lim = sec.limit_num > 0 ? sec.limit_num : 6;
+            let data = [];
+            const stype = sec.source_type;
+            if (stype === 'book') {
+                const books = await app.model.Book.findAll({ where: { status: 1 }, order: [['sort', 'DESC'], ['id', 'DESC']], limit: lim });
+                data = JSON.parse(JSON.stringify(books));
+            } else if (stype === 'testpaper') {
+                const papers = await app.model.Testpaper.findAll({ where: { status: 1 }, order: [['sort', 'DESC'], ['id', 'DESC']], limit: lim });
+                data = JSON.parse(JSON.stringify(papers));
+            } else {
+                // course / column 都走 Course 表，按 type 过滤
+                const where = { status: 1 };
+                where.type = stype === 'column' ? 'column' : { [app.Sequelize.Op.ne]: 'column' };
+                const courses = await app.model.Course.findAll({ where, order: [['sort', 'DESC'], ['id', 'DESC']], limit: lim });
+                data = JSON.parse(JSON.stringify(courses));
+            }
+            templates.push({
+                type: 'list',
+                dataType: stype,          // 前端按这个决定用哪个卡片组件
+                title: sec.title,
+                listType: 'one',
+                showMore: !!sec.show_more,
+                data
+            });
+        }
 
         ctx.apiSuccess(templates);
     }

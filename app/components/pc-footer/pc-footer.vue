@@ -1,36 +1,31 @@
 <template>
-	<!-- 仅 PC 宽屏显示的页脚 -->
+	<!-- 仅 PC 宽屏显示的页脚（居中三行：社交图标 / 快捷链接 / 版权） -->
 	<view class="pcf-wrap">
-		<view class="pcf-inner">
-			<!-- 品牌区 -->
-			<view class="pcf-brand">
-				<view class="pcf-logo-row">
-					<image v-if="cfg.site_logo" class="pcf-logo-img" :src="cfg.site_logo" mode="aspectFit"></image>
-					<text v-else class="pcf-logo-emoji">📚</text>
-					<text class="pcf-name">{{ cfg.site_name || 'EduYi 易教' }}</text>
-				</view>
-				<text class="pcf-desc">{{ cfg.site_desc }}</text>
-			</view>
-
-			<!-- 快捷链接 -->
-			<view class="pcf-col" v-if="cfg.footer_links && cfg.footer_links.length">
-				<text class="pcf-col-title">快捷导航</text>
-				<text class="pcf-link" v-for="(l,i) in cfg.footer_links" :key="i" @click="openLink(l)">{{ l.name }}</text>
-			</view>
-
-			<!-- 联系方式 -->
-			<view class="pcf-col" v-if="hasContact">
-				<text class="pcf-col-title">联系我们</text>
-				<text class="pcf-contact" v-if="cfg.contact_phone">📞 {{ cfg.contact_phone }}</text>
-				<text class="pcf-contact" v-if="cfg.contact_email">✉️ {{ cfg.contact_email }}</text>
-				<text class="pcf-contact" v-if="cfg.contact_address">📍 {{ cfg.contact_address }}</text>
+		<!-- 第一行：社交平台图标 -->
+		<view class="pcf-socials" v-if="socials.length">
+			<view class="pcf-social" v-for="(s,i) in socials" :key="i" @click="openSocial(s)" :title="s.name">
+				<image v-if="s.icon && s.icon.indexOf('/')>-1" class="pcf-social-img" :src="s.icon" mode="aspectFit"></image>
+				<text v-else class="pcf-social-emoji">{{ s.icon || s.name.slice(0,2) }}</text>
+				<text class="pcf-social-name">{{ s.name }}</text>
 			</view>
 		</view>
 
-		<!-- 版权条 -->
+		<!-- 第二行：快捷链接 -->
+		<view class="pcf-links" v-if="cfg.footer_links && cfg.footer_links.length">
+			<text class="pcf-link" v-for="(l,i) in cfg.footer_links" :key="i" @click="openLink(l)">{{ l.name }}</text>
+		</view>
+
+		<!-- 第三行：联系方式（可选，居中一行） -->
+		<view class="pcf-contact-row" v-if="hasContact">
+			<text class="pcf-contact" v-if="cfg.contact_phone">📞 {{ cfg.contact_phone }}</text>
+			<text class="pcf-contact" v-if="cfg.contact_email">✉️ {{ cfg.contact_email }}</text>
+			<text class="pcf-contact" v-if="cfg.contact_address">📍 {{ cfg.contact_address }}</text>
+		</view>
+
+		<!-- 第四行：版权 -->
 		<view class="pcf-copy">
 			<text class="pcf-copy-text">{{ cfg.copyright || ('© ' + year + ' EduYi 易教') }}</text>
-			<text class="pcf-copy-text" v-if="cfg.icp" @click="openIcp">{{ cfg.icp }}</text>
+			<text class="pcf-copy-text pcf-copy-link" v-if="cfg.icp" @click="openIcp">{{ cfg.icp }}</text>
 		</view>
 	</view>
 </template>
@@ -41,17 +36,22 @@
 		name: 'pc-footer',
 		computed: {
 			...mapState({ cfg: state => state.siteConfig || {} }),
-			year() {
-				return new Date().getFullYear()
-			},
-			hasContact() {
-				return this.cfg.contact_phone || this.cfg.contact_email || this.cfg.contact_address
-			}
+			year() { return new Date().getFullYear() },
+			hasContact() { return this.cfg.contact_phone || this.cfg.contact_email || this.cfg.contact_address },
+			socials() { return (this.cfg.footer_socials && Array.isArray(this.cfg.footer_socials)) ? this.cfg.footer_socials : [] }
 		},
 		methods: {
+			openSocial(s) {
+				if (!s.url) return
+				// #ifdef H5
+				window.open(s.url, '_blank')
+				// #endif
+				// #ifndef H5
+				uni.navigateTo({ url: '/pages/webview/webview?url=' + encodeURIComponent(s.url) })
+				// #endif
+			},
 			openLink(l) {
 				if (!l.url) return
-				// 站内页面路径用 navigateTo，http 外链用 webview
 				if (l.url.indexOf('http') === 0) {
 					// #ifdef H5
 					window.open(l.url, '_blank')
@@ -74,95 +74,100 @@
 
 <style>
 	.pcf-wrap {
-		background-color: #2b2f38;
+		background-color: #ffffff;
+		border-top: 1px solid #eef0f2;
 		margin-top: 40px;
+		padding: 36px 24px 28px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
-	.pcf-inner {
-		max-width: 1100px;
-		margin: 0 auto;
-		padding: 40px 24px 28px;
+	/* 第一行：社交图标，居中横排 */
+	.pcf-socials {
 		display: flex;
 		flex-direction: row;
 		flex-wrap: wrap;
-		gap: 60px;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 28px;
+		margin-bottom: 24px;
 	}
-	/* 品牌区 */
-	.pcf-brand {
+	.pcf-social {
 		display: flex;
 		flex-direction: column;
-		flex: 1;
-		min-width: 240px;
-		max-width: 360px;
+		align-items: center;
+		cursor: pointer;
+		width: 56px;
 	}
-	.pcf-logo-row {
+	.pcf-social-img {
+		width: 30px;
+		height: 30px;
+	}
+	.pcf-social-emoji {
+		font-size: 26px;
+		line-height: 1;
+	}
+	.pcf-social-name {
+		font-size: 12px;
+		color: #8a9099;
+		margin-top: 8px;
+		white-space: nowrap;
+	}
+	.pcf-social:hover .pcf-social-name {
+		color: #43b876;
+	}
+	/* 第二行：快捷链接，居中横排带下划线 */
+	.pcf-links {
 		display: flex;
 		flex-direction: row;
-		align-items: center;
-	}
-	.pcf-logo-img {
-		width: 32px;
-		height: 32px;
-		border-radius: 8px;
-		margin-right: 10px;
-	}
-	.pcf-logo-emoji {
-		font-size: 26px;
-		margin-right: 10px;
-	}
-	.pcf-name {
-		font-size: 20px;
-		font-weight: 700;
-		color: #fff;
-	}
-	.pcf-desc {
-		font-size: 13px;
-		color: #9aa0a6;
-		line-height: 1.8;
-		margin-top: 14px;
-	}
-	/* 列 */
-	.pcf-col {
-		display: flex;
-		flex-direction: column;
-	}
-	.pcf-col-title {
-		font-size: 15px;
-		font-weight: 600;
-		color: #fff;
-		margin-bottom: 16px;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 32px;
+		margin-bottom: 18px;
 	}
 	.pcf-link {
-		font-size: 13px;
-		color: #9aa0a6;
-		line-height: 1;
-		margin-bottom: 14px;
+		font-size: 14px;
+		color: #555;
 		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 4px;
 	}
 	.pcf-link:hover {
 		color: #43b876;
 	}
-	.pcf-contact {
-		font-size: 13px;
-		color: #9aa0a6;
-		line-height: 1;
-		margin-bottom: 14px;
-	}
-	/* 版权条 */
-	.pcf-copy {
-		border-top: 1px solid #3a3f49;
-		padding: 18px 24px;
+	/* 第三行：联系方式 */
+	.pcf-contact-row {
 		display: flex;
 		flex-direction: row;
-		align-items: center;
+		flex-wrap: wrap;
 		justify-content: center;
-		gap: 20px;
+		gap: 24px;
+		margin-bottom: 16px;
+	}
+	.pcf-contact {
+		font-size: 13px;
+		color: #8a9099;
+	}
+	/* 第四行：版权，居中 */
+	.pcf-copy {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 16px;
+		padding-top: 16px;
+		border-top: 1px solid #f2f3f5;
+		width: 100%;
+		max-width: 900px;
 	}
 	.pcf-copy-text {
 		font-size: 12px;
-		color: #6b7280;
+		color: #a8acb3;
 	}
-	.pcf-copy-text:hover {
-		color: #9aa0a6;
+	.pcf-copy-link {
 		cursor: pointer;
+	}
+	.pcf-copy-link:hover {
+		color: #666;
 	}
 </style>
