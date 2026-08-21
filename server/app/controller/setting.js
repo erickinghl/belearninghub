@@ -43,6 +43,7 @@ class SettingController extends Controller {
             contact_address: m.contact_address || '',
             copyright: m.copyright || '',
             icp: m.icp || '',
+            site_home_url: m.site_home_url || '',
         });
     }
 

@@ -1,7 +1,7 @@
 import store from '../store/index.js';
 export default {
 	config:{
-		baseURL:"http://172.16.0.2:7001",
+		baseURL:"http://127.0.0.1:7001",
 		appid:"bd9d01ecc75dbbaaefce",
 		// 请求拦截器
 		beforeRequest(options = {}){

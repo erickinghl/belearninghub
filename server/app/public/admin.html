@@ -12,6 +12,16 @@
   .topbar h1 { font-size: 18px; font-weight: 600; }
   .topbar .user { font-size: 14px; }
   .topbar .user a { color: #fff; margin-left: 16px; cursor: pointer; opacity: .9; }
+  .usermenu { position: relative; }
+  .usermenu-trigger { cursor: pointer; padding: 6px 10px; border-radius: 8px; user-select: none; }
+  .usermenu-trigger:hover { background: rgba(255,255,255,0.18); }
+  .usermenu-pop { position: absolute; right: 0; top: 100%; margin-top: 8px; background: #fff; color: #333; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); min-width: 190px; padding: 6px; z-index: 1001; }
+  .usermenu-item { padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+  .usermenu-item:hover { background: #f2f7f4; }
+  .usermenu-item.danger { color: #e25555; }
+  .usermenu-item.danger:hover { background: #fdeeee; }
+  .usermenu-divider { height: 1px; background: #eee; margin: 6px 8px; }
+  .usermenu-mask { position: fixed; inset: 0; z-index: 1000; }
   .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .tabs button { padding: 8px 20px; border: none; background: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; color: #666; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
@@ -76,7 +86,33 @@
   <template v-else>
     <div class="topbar">
       <h1>📚 在线教育 管理后台</h1>
-      <div class="user">{{ username }} <a @click="logout">退出</a></div>
+      <div class="user usermenu">
+        <span class="usermenu-trigger" @click="userMenuOpen = !userMenuOpen">{{ username }} ▾</span>
+        <div class="usermenu-pop" v-if="userMenuOpen" @click.stop>
+          <div class="usermenu-item" @click="visitHomePC">🖥 访问主页（电脑版）</div>
+          <div class="usermenu-item" @click="visitHomeMobile">📱 访问主页（手机版）</div>
+          <div class="usermenu-divider"></div>
+          <div class="usermenu-item" @click="openChangePwd">🔑 修改管理员密码</div>
+          <div class="usermenu-item" @click="refreshCurrent">🔄 刷新数据</div>
+          <div class="usermenu-divider"></div>
+          <div class="usermenu-item danger" @click="logout">🚪 退出登录</div>
+        </div>
+        <div class="usermenu-mask" v-if="userMenuOpen" @click="userMenuOpen = false"></div>
+      </div>
+    </div>
+
+    <!-- 修改管理员密码弹窗（全局） -->
+    <div class="modal-mask" v-if="pwdModal" @click.self="pwdModal=false">
+      <div class="modal" style="max-width:380px;">
+        <h2>修改管理员密码</h2>
+        <div class="form-row"><label>原密码</label><input type="password" v-model="pwdForm.old_password" placeholder="当前密码"></div>
+        <div class="form-row"><label>新密码</label><input type="password" v-model="pwdForm.password" placeholder="新密码"></div>
+        <div class="form-row"><label>确认新密码</label><input type="password" v-model="pwdForm.repassword" placeholder="再输一次新密码"></div>
+        <div class="modal-foot">
+          <button class="btn btn-plain" @click="pwdModal=false">取消</button>
+          <button class="btn btn-primary" @click="submitChangePwd">确定修改</button>
+        </div>
+      </div>
     </div>
     <div class="wrap">
       <div class="tabs">
@@ -680,6 +716,12 @@
             </div>
           </div>
           <div class="form-row"><label>一句话介绍</label><textarea v-model="site.site_desc" placeholder="专注在线教育，让学习更高效……"></textarea></div>
+
+          <div class="form-row">
+            <label>前台首页地址（右上角"访问主页"用）</label>
+            <input v-model="site.site_home_url" placeholder="如 http://172.16.0.2:8080 或 https://你的域名，留空则打开当前域名首页">
+            <p style="font-size:12px;color:#999;margin:6px 0 0;">部署到服务器后填服务器地址（带端口），右上角菜单点"访问主页"会新标签打开它。</p>
+          </div>
 
           <div class="form-row">
             <label>快捷链接（页脚导航）</label>
@@ -1393,7 +1435,10 @@ createApp({
       avatarUploading: false,
       presetAvatars: ['/public/avatars/avatar-1.png', '/public/avatars/avatar-2.png', '/public/avatars/avatar-3.png', '/public/avatars/avatar-4.png'],
       videoMaxMb: 50,
-      site: { site_name: '', site_logo: '', site_desc: '', contact_phone: '', contact_email: '', contact_address: '', copyright: '', icp: '' },
+      site: { site_name: '', site_logo: '', site_desc: '', contact_phone: '', contact_email: '', contact_address: '', copyright: '', icp: '', site_home_url: '' },
+      userMenuOpen: false,
+      pwdModal: false,
+      pwdForm: { old_password: '', password: '', repassword: '' },
       footerLinks: [],
       footerSocials: [],
       logoUploading: false,
@@ -1587,7 +1632,56 @@ createApp({
       }
     },
     logout() {
+      this.userMenuOpen = false;
       this.token = ''; localStorage.removeItem('admin_token');
+    },
+    // ===== 右上角下拉菜单 =====
+    // 取前台首页地址：优先后台配置，没配则回退同主机 8080
+    async resolveHomeUrl() {
+      let url = (this.site && this.site.site_home_url) ? this.site.site_home_url.trim() : '';
+      if (!url) {
+        const d = await this.req('/admin/setting/list');
+        if (d.msg === 'ok' && d.data && d.data.site_home_url) url = (d.data.site_home_url || '').trim();
+      }
+      if (!url) {
+        url = location.protocol + '//' + location.hostname + ':8080/';
+        this.toast('未配置前台地址，已按默认 8080 打开。可在「站点信息」里设置');
+      }
+      return url;
+    },
+    async visitHomePC() {
+      this.userMenuOpen = false;
+      const url = await this.resolveHomeUrl();
+      window.open(url, '_blank');   // 全屏新标签 → 宽屏走 PC 布局
+    },
+    async visitHomeMobile() {
+      this.userMenuOpen = false;
+      const url = await this.resolveHomeUrl();
+      // 开一个手机尺寸的窄窗口（iPhone 390×844）→ 触发移动端布局
+      window.open(url, 'edu_mobile_preview', 'width=390,height=844,resizable=yes,scrollbars=yes');
+    },
+    refreshCurrent() {
+      this.userMenuOpen = false;
+      this.restoreTab();
+      this.toast('已刷新');
+    },
+    openChangePwd() {
+      this.userMenuOpen = false;
+      this.pwdForm = { old_password: '', password: '', repassword: '' };
+      this.pwdModal = true;
+    },
+    async submitChangePwd() {
+      const f = this.pwdForm;
+      if (!f.old_password || !f.password) return this.toast('请填写原密码和新密码');
+      if (f.password !== f.repassword) return this.toast('两次新密码不一致');
+      const d = await this.reqJSON('/mobile/update_password', f);
+      if (d.msg === 'ok') {
+        this.toast('密码修改成功，请重新登录');
+        this.pwdModal = false;
+        setTimeout(() => this.logout(), 1000);
+      } else {
+        this.toast(typeof d.data === 'string' ? d.data : '修改失败');
+      }
     },
     async loadAll() { this.loadCourses(); this.loadBanners(); },
     async loadCourses() {
@@ -1707,6 +1801,7 @@ createApp({
           site_name: x.site_name || '', site_logo: x.site_logo || '', site_desc: x.site_desc || '',
           contact_phone: x.contact_phone || '', contact_email: x.contact_email || '',
           contact_address: x.contact_address || '', copyright: x.copyright || '', icp: x.icp || '',
+          site_home_url: x.site_home_url || '',
         };
         try { this.footerLinks = JSON.parse(x.footer_links || '[]'); } catch (e) { this.footerLinks = []; }
         try { this.footerSocials = JSON.parse(x.footer_socials || '[]'); } catch (e) { this.footerSocials = []; }
